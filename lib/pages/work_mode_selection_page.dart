@@ -1,5 +1,6 @@
 import 'package:attendence_management_system/pages/AttendanceScreen.dart';
 import 'package:attendence_management_system/pages/loginPage.dart';
+import 'package:attendence_management_system/pages/role_selection_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -177,7 +178,7 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
     await FirebaseAuth.instance.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginPage()),
+      MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
       (route) => false,
     );
   }

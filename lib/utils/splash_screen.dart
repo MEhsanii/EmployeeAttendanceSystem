@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import '../pages/loginPage.dart';
+import '../pages/role_selection_page.dart';
 import '../pages/work_mode_selection_page.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -46,8 +46,9 @@ class _SplashScreenState extends State<SplashScreen>
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            user != null ? const WorkModeSelectionPage() : const LoginPage(),
+        builder: (_) => user != null
+            ? const WorkModeSelectionPage()
+            : const RoleSelectionPage(),
       ),
     );
   }

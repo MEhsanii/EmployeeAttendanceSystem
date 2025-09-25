@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 // ignore: unused_import
 import 'package:attendence_management_system/pages/AttendanceScreen.dart';
 import 'package:attendence_management_system/pages/work_mode_selection_page.dart';
+import 'package:attendence_management_system/pages/role_selection_page.dart';
+import 'package:attendence_management_system/pages/ceo_dashboard.dart';
+import 'package:attendence_management_system/pages/hr_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final UserRole selectedRole;
+
+  const LoginPage({super.key, required this.selectedRole});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -19,20 +25,85 @@ class _LoginPageState extends State<LoginPage> {
 
   static const Color bpgGreen = Color(0xFF2E4A2C); // BPG exact green
 
+  String _getRoleDisplayName(UserRole role) {
+    switch (role) {
+      case UserRole.ceo:
+        return 'CEO';
+      case UserRole.hr:
+        return 'HR Manager';
+      case UserRole.employee:
+        return 'Employee';
+    }
+  }
+
+  String _getRoleString(UserRole role) {
+    switch (role) {
+      case UserRole.ceo:
+        return 'ceo';
+      case UserRole.hr:
+        return 'hr';
+      case UserRole.employee:
+        return 'employee';
+    }
+  }
+
   Future<void> signIn() async {
     setState(() => _isLoading = true);
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
+      // Check user role in Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .get();
+
+      String? userRole;
+      if (userDoc.exists) {
+        userRole = userDoc.data()?['role'] as String?;
+      }
+
+      // Validate if the user's role matches the selected role
+      final expectedRole = _getRoleString(widget.selectedRole);
+
+      if (userRole?.toLowerCase() != expectedRole) {
+        // Sign out the user since role doesn't match
+        await FirebaseAuth.instance.signOut();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'No ${_getRoleDisplayName(widget.selectedRole)} found with these credentials.'),
+              backgroundColor: Colors.redAccent,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Role matches, navigate to appropriate screen
       if (context.mounted) {
+        Widget nextPage;
+        switch (widget.selectedRole) {
+          case UserRole.ceo:
+            nextPage = const CEODashboard();
+            break;
+          case UserRole.hr:
+            nextPage = const HRDashboard();
+            break;
+          case UserRole.employee:
+            nextPage = const WorkModeSelectionPage();
+            break;
+        }
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-              builder: (context) =>
-                  const WorkModeSelectionPage()), // ✅ Navigate to new page
+          MaterialPageRoute(builder: (context) => nextPage),
         );
       }
     } catch (e) {
@@ -55,6 +126,19 @@ class _LoginPageState extends State<LoginPage> {
 
     return Scaffold(
       backgroundColor: bpgGreen,
+      appBar: AppBar(
+        backgroundColor: bpgGreen,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _getRoleDisplayName(widget.selectedRole),
+          style: const TextStyle(color: Colors.white),
+        ),
+        centerTitle: true,
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -82,9 +166,9 @@ class _LoginPageState extends State<LoginPage> {
                     height: 80,
                   ),
                   const SizedBox(height: 24),
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
+                  Text(
+                    'Login as ${_getRoleDisplayName(widget.selectedRole)}',
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: bpgGreen,
