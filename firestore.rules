@@ -1,0 +1,176 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is CEO
+    function isCEO() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ceo';
+    }
+    
+    // Helper function to check if user is HR
+    function isHR() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'hr';
+    }
+    
+    // Helper function to check if user has admin privileges (CEO or HR)
+    function isAdmin() {
+      return isCEO() || isHR();
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Allow read for:
+      // 1. The user themselves
+      // 2. CEO (can read all users)
+      // 3. HR (can read all users)
+      allow read: if request.auth != null && 
+                     (request.auth.uid == userId || isAdmin());
+      
+      // Allow write for:
+      // 1. The user themselves (for updating their own profile)
+      // 2. CEO (can manage all users)
+      allow write: if request.auth != null && 
+                      (request.auth.uid == userId || isCEO());
+      
+      // Attendance subcollection
+      match /attendance/{attendanceId} {
+        // Allow read for:
+        // 1. The user themselves
+        // 2. CEO and HR (can view all attendance)
+        allow read: if request.auth != null && 
+                       (request.auth.uid == userId || isAdmin());
+        
+        // Allow write for:
+        // 1. The user themselves (for recording their own attendance)
+        // 2. CEO (can modify any attendance record)
+        allow write: if request.auth != null && 
+                        (request.auth.uid == userId || isCEO());
+      }
+      
+      // Vacation requests subcollection
+      match /vacationRequests/{requestId} {
+        // Allow read for:
+        // 1. The user themselves
+        // 2. CEO and HR (can view all requests)
+        allow read: if request.auth != null && 
+                       (request.auth.uid == userId || isAdmin());
+        
+        // Allow write for:
+        // 1. The user themselves (for creating/updating their own requests)
+        // 2. CEO and HR (can approve/reject requests)
+        allow write: if request.auth != null && 
+                        (request.auth.uid == userId || isAdmin());
+      }
+      
+      // Home office requests subcollection
+      match /homeOfficeRequests/{requestId} {
+        // Allow read for:
+        // 1. The user themselves
+        // 2. CEO and HR (can view all requests)
+        allow read: if request.auth != null && 
+                       (request.auth.uid == userId || isAdmin());
+        
+        // Allow write for:
+        // 1. The user themselves (for creating/updating their own requests)
+        // 2. CEO and HR (can approve/reject requests)
+        allow write: if request.auth != null && 
+                        (request.auth.uid == userId || isAdmin());
+      }
+      
+      // Sick leave requests subcollection
+      match /sickLeaveRequests/{requestId} {
+        // Allow read for:
+        // 1. The user themselves
+        // 2. CEO and HR (can view all requests)
+        allow read: if request.auth != null && 
+                       (request.auth.uid == userId || isAdmin());
+        
+        // Allow write for:
+        // 1. The user themselves (for creating/updating their own requests)
+        // 2. CEO and HR (can approve/reject requests)
+        allow write: if request.auth != null && 
+                        (request.auth.uid == userId || isAdmin());
+      }
+      
+      // Approved home office subcollection
+      match /approvedHomeOffice/{dateId} {
+        // Allow read for:
+        // 1. The user themselves
+        // 2. CEO and HR (can view all approved home office days)
+        allow read: if request.auth != null && 
+                       (request.auth.uid == userId || isAdmin());
+        
+        // Allow write for:
+        // 1. CEO and HR (can approve home office requests)
+        allow write: if request.auth != null && isAdmin();
+      }
+    }
+    
+    // Vacation requests collection (global)
+    match /vacationRequests/{requestId} {
+      // Allow read for:
+      // 1. The request owner
+      // 2. CEO and HR (can view all requests)
+      allow read: if request.auth != null && 
+                     (request.auth.uid == resource.data.userId || isAdmin());
+      
+      // Allow write for:
+      // 1. The request owner (for creating/updating their own requests)
+      // 2. CEO and HR (can approve/reject requests)
+      allow write: if request.auth != null && 
+                      (request.auth.uid == resource.data.userId || isAdmin());
+    }
+    
+    // Home office requests collection (global)
+    match /homeOfficeRequests/{requestId} {
+      // Allow read for:
+      // 1. The request owner
+      // 2. CEO and HR (can view all requests)
+      allow read: if request.auth != null && 
+                     (request.auth.uid == resource.data.userId || isAdmin());
+      
+      // Allow write for:
+      // 1. The request owner (for creating/updating their own requests)
+      // 2. CEO and HR (can approve/reject requests)
+      allow write: if request.auth != null && 
+                      (request.auth.uid == resource.data.userId || isAdmin());
+    }
+    
+    // Sick leave requests collection (global)
+    match /sickLeaveRequests/{requestId} {
+      // Allow read for:
+      // 1. The request owner
+      // 2. CEO and HR (can view all requests)
+      allow read: if request.auth != null && 
+                     (request.auth.uid == resource.data.userId || isAdmin());
+      
+      // Allow write for:
+      // 1. The request owner (for creating/updating their own requests)
+      // 2. CEO and HR (can approve/reject requests)
+      allow write: if request.auth != null && 
+                      (request.auth.uid == resource.data.userId || isAdmin());
+    }
+    
+    // Announcements collection
+    match /announcements/{announcementId} {
+      // Allow read for all authenticated users
+      allow read: if request.auth != null;
+      
+      // Allow write for:
+      // 1. CEO (can create all types of announcements)
+      // 2. HR (can create employee announcements)
+      // 3. Employees (can create employee announcements)
+      allow write: if request.auth != null && 
+                      (isCEO() || 
+                       (isHR() && request.resource.data.type == 'employee') ||
+                       (!isAdmin() && request.resource.data.type == 'employee'));
+    }
+    
+    // Default rule - deny all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

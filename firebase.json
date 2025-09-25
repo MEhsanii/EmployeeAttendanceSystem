@@ -1,1 +1,35 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"employeeattendancesystem-402f9","appId":"1:33226716048:android:3b7c07f88c8438585f7915","fileOutput":"android/app/google-services.json"}},"ios":{"default":{"projectId":"employeeattendancesystem-402f9","appId":"1:33226716048:ios:e257d2bc1a7c90f95f7915","uploadDebugSymbols":false,"fileOutput":"ios/Runner/GoogleService-Info.plist"}},"dart":{"lib/firebase_options.dart":{"projectId":"employeeattendancesystem-402f9","configurations":{"android":"1:33226716048:android:3b7c07f88c8438585f7915","ios":"1:33226716048:ios:e257d2bc1a7c90f95f7915","web":"1:33226716048:web:6d87883c5cb928985f7915"}}}}}}
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "employeeattendancesystem-402f9",
+          "appId": "1:33226716048:android:3b7c07f88c8438585f7915",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "employeeattendancesystem-402f9",
+          "appId": "1:33226716048:ios:e257d2bc1a7c90f95f7915",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "employeeattendancesystem-402f9",
+          "configurations": {
+            "android": "1:33226716048:android:3b7c07f88c8438585f7915",
+            "ios": "1:33226716048:ios:e257d2bc1a7c90f95f7915",
+            "web": "1:33226716048:web:6d87883c5cb928985f7915"
+          }
+        }
+      }
+    }
+  }
+}
