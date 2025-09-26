@@ -21,6 +21,11 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
   DateTime _focusedDay = DateTime.now();
   final _fmt = DateFormat('yyyy-MM-dd');
 
+  // Track existing requests by date and their status
+  final Map<String, String> _existingRequests =
+      {}; // dateId -> status (pending/approved/rejected)
+  bool _loadingExistingRequests = true;
+
   @override
   void dispose() {
     _noteCtrl.dispose();
@@ -31,6 +36,48 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
   void initState() {
     super.initState();
     _noteCtrl.addListener(() => setState(() {})); // updates the counter text
+    _loadExistingRequests();
+  }
+
+  Future<void> _loadExistingRequests() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      setState(() => _loadingExistingRequests = false);
+      return;
+    }
+
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('homeOfficeRequests')
+          .get();
+
+      _existingRequests.clear();
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final requestedDates = List<String>.from(data['requestedDates'] ?? []);
+        final statusByDate =
+            Map<String, dynamic>.from(data['statusByDate'] ?? {});
+
+        for (final dateId in requestedDates) {
+          final status = statusByDate[dateId] ?? 'pending';
+          _existingRequests[dateId] = status;
+        }
+      }
+    } catch (e) {
+      print('Error loading existing requests: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _loadingExistingRequests = false);
+      }
+    }
+  }
+
+  String? _getDateStatus(DateTime date) {
+    final dateId = _fmt.format(date);
+    return _existingRequests[dateId];
   }
 
   // ---- Helpers --------------------------------------------------------------
@@ -40,7 +87,13 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
     final today = DateTime(now.year, now.month, now.day);
     final earliest = today.add(const Duration(days: 1)); // >= tomorrow
     final d = DateTime(day.year, day.month, day.day);
-    return !d.isBefore(earliest);
+
+    // Check if date is in the future
+    if (d.isBefore(earliest)) return false;
+
+    // Check if date already has a request
+    final status = _getDateStatus(d);
+    return status == null; // Only selectable if no existing request
   }
 
   void _onDayTapped(DateTime day, DateTime focusedDay) {
@@ -103,6 +156,9 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
         _selectedDays.clear();
         _noteCtrl.clear();
       });
+
+      // Refresh existing requests to show newly submitted ones
+      await _loadExistingRequests();
 
       showModalBottomSheet(
         context: context,
@@ -192,189 +248,386 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Everything scrolls except the bottom button
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(bottom: 12),
+      body: _loadingExistingRequests
+          ? const Center(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Guidance banner (same tone as Vacation)
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Select one or more days (min. 24 hours in advance).',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-
-                  // Calendar with fixed height (prevents overflow)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: SizedBox(
-                      height: calHeight,
-                      child: TableCalendar(
-                        firstDay: DateTime.now(),
-                        lastDay: DateTime.now().add(const Duration(days: 365)),
-                        focusedDay: _focusedDay,
-                        calendarFormat: CalendarFormat.month,
-                        headerStyle: HeaderStyle(
-                          titleCentered: true,
-                          titleTextStyle: theme.textTheme.titleMedium ??
-                              const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w600),
-                          formatButtonVisible: true,
-                          leftChevronIcon: Icon(Icons.chevron_left,
-                              color: cs.onSurface.withOpacity(0.7)),
-                          rightChevronIcon: Icon(Icons.chevron_right,
-                              color: cs.onSurface.withOpacity(0.7)),
-                        ),
-                        daysOfWeekStyle: DaysOfWeekStyle(
-                          weekdayStyle: theme.textTheme.labelMedium ??
-                              const TextStyle(fontSize: 12),
-                          weekendStyle: theme.textTheme.labelMedium ??
-                              const TextStyle(fontSize: 12),
-                        ),
-                        calendarStyle: CalendarStyle(
-                          todayDecoration: BoxDecoration(
-                            color: cs.primary.withOpacity(0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          selectedDecoration: BoxDecoration(
-                            color: cs.primary.withOpacity(0.35),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        selectedDayPredicate: (day) {
-                          final d = DateTime(day.year, day.month, day.day);
-                          return _selectedDays.contains(d);
-                        },
-                        onDaySelected: _onDayTapped,
-                        calendarBuilders: CalendarBuilders(
-                          defaultBuilder: (context, day, _) {
-                            final allowed = _isSelectable(day);
-                            return Center(
-                              child: Text(
-                                '${day.day}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: allowed
-                                      ? cs.onSurface
-                                      : cs.onSurface.withOpacity(0.35),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  if (_selectedDays.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      child: Wrap(
-                        spacing: 8,
-                        children: _selectedDateIds
-                            .map(
-                              (d) => Chip(
-                                label:
-                                    Text(d, style: theme.textTheme.labelLarge),
-                                shape: StadiumBorder(
-                                    side: BorderSide(
-                                        color: pillBorder.withOpacity(0.7))),
-                                backgroundColor: Colors.white,
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ),
-
-                  // Optional Note (same look as Vacation)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: Text('Optional Note',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: TextField(
-                      controller: _noteCtrl,
-                      maxLength: 300,
-                      minLines: 2,
-                      maxLines: 4,
-                      style: theme.textTheme.bodyMedium,
-                      decoration: InputDecoration(
-                        hintText: 'Reason, location, etc.',
-                        hintStyle: theme.textTheme.bodyMedium
-                            ?.copyWith(color: Colors.black45),
-                        filled: true,
-                        fillColor: Colors.white,
-                        counterText: '',
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: pillBorder.withOpacity(0.8)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: cs.primary),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16, right: 16),
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        '${_noteCtrl.text.length}/300',
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: Colors.black45),
-                      ),
-                    ),
-                  ),
-
-                  // Monthly Summary (same green card vibe)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: _MonthlySummaryCard(
-                      userId: _auth.currentUser?.uid,
-                      bg: cardGreen,
-                      pillBorder: pillBorder,
-                    ),
-                  ),
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading existing requests...'),
                 ],
               ),
-            ),
-          ),
+            )
+          : Column(
+              children: [
+                // Everything scrolls except the bottom button
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Guidance banner (same tone as Vacation)
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Select one or more days (min. 24 hours in advance).',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
 
-          // Submit button pinned at the bottom
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton.icon(
-                onPressed: canSubmit ? _submit : null,
-                icon: const Icon(Icons.send),
-                label: Text(_submitting ? 'Submitting…' : 'Submit Request'),
-              ),
+                        // Calendar with fixed height (prevents overflow)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: SizedBox(
+                            height: calHeight,
+                            child: TableCalendar(
+                              firstDay: DateTime.now(),
+                              lastDay:
+                                  DateTime.now().add(const Duration(days: 365)),
+                              focusedDay: _focusedDay,
+                              calendarFormat: CalendarFormat.month,
+                              headerStyle: HeaderStyle(
+                                titleCentered: true,
+                                titleTextStyle: theme.textTheme.titleMedium ??
+                                    const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
+                                formatButtonVisible: true,
+                                leftChevronIcon: Icon(Icons.chevron_left,
+                                    color: cs.onSurface.withOpacity(0.7)),
+                                rightChevronIcon: Icon(Icons.chevron_right,
+                                    color: cs.onSurface.withOpacity(0.7)),
+                              ),
+                              daysOfWeekStyle: DaysOfWeekStyle(
+                                weekdayStyle: theme.textTheme.labelMedium ??
+                                    const TextStyle(fontSize: 12),
+                                weekendStyle: theme.textTheme.labelMedium ??
+                                    const TextStyle(fontSize: 12),
+                              ),
+                              calendarStyle: CalendarStyle(
+                                todayDecoration: BoxDecoration(
+                                  color: cs.primary.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                selectedDecoration: BoxDecoration(
+                                  color: cs.primary.withOpacity(0.35),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              selectedDayPredicate: (day) {
+                                final d =
+                                    DateTime(day.year, day.month, day.day);
+                                return _selectedDays.contains(d);
+                              },
+                              onDaySelected: _onDayTapped,
+                              calendarBuilders: CalendarBuilders(
+                                defaultBuilder: (context, day, _) {
+                                  final status = _getDateStatus(day);
+                                  final allowed = _isSelectable(day);
+
+                                  Color? backgroundColor;
+                                  Color? textColor;
+
+                                  if (status != null) {
+                                    // Date has an existing request
+                                    switch (status) {
+                                      case 'approved':
+                                        backgroundColor = Colors.green;
+                                        textColor = Colors.white;
+                                        break;
+                                      case 'rejected':
+                                        backgroundColor = Colors.red;
+                                        textColor = Colors.white;
+                                        break;
+                                      case 'pending':
+                                      default:
+                                        backgroundColor = Colors.orange;
+                                        textColor = Colors.white;
+                                        break;
+                                    }
+                                  } else if (!allowed) {
+                                    // Past dates or invalid dates
+                                    textColor = cs.onSurface.withOpacity(0.35);
+                                  } else {
+                                    // Available dates
+                                    textColor = cs.onSurface;
+                                  }
+
+                                  return Container(
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: backgroundColor != null
+                                        ? BoxDecoration(
+                                            color: backgroundColor,
+                                            shape: BoxShape.circle,
+                                          )
+                                        : null,
+                                    child: Center(
+                                      child: Text(
+                                        '${day.day}',
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                          color: textColor,
+                                          fontWeight: backgroundColor != null
+                                              ? FontWeight.w600
+                                              : FontWeight.normal,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                selectedBuilder: (context, day, _) {
+                                  // Override selected builder to maintain status colors for selected days
+                                  final status = _getDateStatus(day);
+                                  if (status != null) {
+                                    Color backgroundColor;
+                                    switch (status) {
+                                      case 'approved':
+                                        backgroundColor = Colors.green.shade700;
+                                        break;
+                                      case 'rejected':
+                                        backgroundColor = Colors.red.shade700;
+                                        break;
+                                      case 'pending':
+                                      default:
+                                        backgroundColor =
+                                            Colors.orange.shade700;
+                                        break;
+                                    }
+
+                                    return Container(
+                                      margin: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: backgroundColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                            color: Colors.white, width: 2),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${day.day}',
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    // Default selected style for new selections
+                                    return Container(
+                                      margin: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: cs.primary.withOpacity(0.35),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '${day.day}',
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                            color: cs.onSurface,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Color Legend
+                        if (!_loadingExistingRequests)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey.shade200),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Color Legend:',
+                                    style: theme.textTheme.titleSmall
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.green,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Text('Approved',
+                                                style: TextStyle(fontSize: 12)),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.orange,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Text('Pending',
+                                                style: TextStyle(fontSize: 12)),
+                                          ],
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Row(
+                                          children: [
+                                            Container(
+                                              width: 16,
+                                              height: 16,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            const Text('Rejected',
+                                                style: TextStyle(fontSize: 12)),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        if (_selectedDays.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: Wrap(
+                              spacing: 8,
+                              children: _selectedDateIds
+                                  .map(
+                                    (d) => Chip(
+                                      label: Text(d,
+                                          style: theme.textTheme.labelLarge),
+                                      shape: StadiumBorder(
+                                          side: BorderSide(
+                                              color:
+                                                  pillBorder.withOpacity(0.7))),
+                                      backgroundColor: Colors.white,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+
+                        // Optional Note (same look as Vacation)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: Text('Optional Note',
+                              style: theme.textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w600)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                          child: TextField(
+                            controller: _noteCtrl,
+                            maxLength: 300,
+                            minLines: 2,
+                            maxLines: 4,
+                            style: theme.textTheme.bodyMedium,
+                            decoration: InputDecoration(
+                              hintText: 'Reason, location, etc.',
+                              hintStyle: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.black45),
+                              filled: true,
+                              fillColor: Colors.white,
+                              counterText: '',
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                    color: pillBorder.withOpacity(0.8)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: cs.primary),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, right: 16),
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              '${_noteCtrl.text.length}/300',
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(color: Colors.black45),
+                            ),
+                          ),
+                        ),
+
+                        // Monthly Summary (same green card vibe)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                          child: _MonthlySummaryCard(
+                            userId: _auth.currentUser?.uid,
+                            bg: cardGreen,
+                            pillBorder: pillBorder,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Submit button pinned at the bottom
+                SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton.icon(
+                      onPressed: canSubmit ? _submit : null,
+                      icon: const Icon(Icons.send),
+                      label:
+                          Text(_submitting ? 'Submitting…' : 'Submit Request'),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }
