@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../pages/role_selection_page.dart';
 import '../pages/work_mode_selection_page.dart';
+import '../pages/admin_dashboard.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -43,14 +45,55 @@ class _SplashScreenState extends State<SplashScreen>
 
     if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => user != null
-            ? const WorkModeSelectionPage()
-            : const RoleSelectionPage(),
-      ),
-    );
+    if (user == null) {
+      // No user logged in, go to role selection
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
+      );
+      return;
+    }
+
+    // User is logged in, check their role and navigate accordingly
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      String? userRole;
+      if (userDoc.exists) {
+        userRole = userDoc.data()?['role'] as String?;
+      }
+
+      if (!mounted) return;
+
+      Widget nextPage;
+      switch (userRole?.toLowerCase()) {
+        case 'ceo':
+          nextPage = const AdminDashboard(userRole: 'ceo');
+          break;
+        case 'hr':
+          nextPage = const AdminDashboard(userRole: 'hr');
+          break;
+        case 'employee':
+        default:
+          nextPage = const WorkModeSelectionPage();
+          break;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => nextPage),
+      );
+    } catch (e) {
+      // If there's an error getting the role, default to role selection
+      print('Error getting user role: $e');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
+      );
+    }
   }
 
   @override

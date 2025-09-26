@@ -31,8 +31,11 @@ service cloud.firestore {
       // Allow write for:
       // 1. The user themselves (for updating their own profile)
       // 2. CEO (can manage all users)
-      allow write: if request.auth != null && 
-                      (request.auth.uid == userId || isCEO());
+      // 3. Unauthenticated users (can create profile during invitation signup)
+      allow write: if (request.auth != null && 
+                       (request.auth.uid == userId || isCEO())) ||
+                      (request.auth == null && 
+                       request.resource.data.keys().hasAll(['userName', 'email', 'role', 'designation']));
       
       // Attendance subcollection
       match /attendance/{attendanceId} {
@@ -151,6 +154,31 @@ service cloud.firestore {
       // 2. CEO and HR (can approve/reject requests)
       allow write: if request.auth != null && 
                       (request.auth.uid == resource.data.userId || isAdmin());
+    }
+    
+    // Employee Invitations collection
+    match /employeeInvitations/{invitationId} {
+      // Allow read for:
+      // 1. CEO and HR (can view all invitations)
+      // 2. Unauthenticated users (for invitation validation during signup)
+      // 3. Newly authenticated invitee validating their own invite
+      allow read: if request.auth == null ||
+                     (request.auth != null && isAdmin()) ||
+                     (request.auth != null &&
+                      resource.data.email == request.auth.token.email);
+      
+      // Allow write for:
+      // 1. CEO and HR (can create and manage invitations)
+      // 2. Unauthenticated users (can update invitation status to 'accepted')
+      // 3. Newly authenticated invitee (email must match invite email)
+      allow write: if (request.auth == null &&
+                       resource.data.status == 'pending' &&
+                       request.resource.data.status == 'accepted') ||
+                      (request.auth != null && isAdmin()) ||
+                      (request.auth != null &&
+                       resource.data.status == 'pending' &&
+                       resource.data.email == request.auth.token.email &&
+                       request.resource.data.status == 'accepted');
     }
     
     // Announcements collection

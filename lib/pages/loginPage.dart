@@ -5,8 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendence_management_system/pages/AttendanceScreen.dart';
 import 'package:attendence_management_system/pages/work_mode_selection_page.dart';
 import 'package:attendence_management_system/pages/role_selection_page.dart';
-import 'package:attendence_management_system/pages/ceo_dashboard.dart';
-import 'package:attendence_management_system/pages/hr_dashboard.dart';
+import 'package:attendence_management_system/pages/admin_dashboard.dart';
 
 class LoginPage extends StatefulWidget {
   final UserRole selectedRole;
@@ -91,10 +90,10 @@ class _LoginPageState extends State<LoginPage> {
         Widget nextPage;
         switch (widget.selectedRole) {
           case UserRole.ceo:
-            nextPage = const CEODashboard();
+            nextPage = const AdminDashboard(userRole: 'ceo');
             break;
           case UserRole.hr:
-            nextPage = const HRDashboard();
+            nextPage = const AdminDashboard(userRole: 'hr');
             break;
           case UserRole.employee:
             nextPage = const WorkModeSelectionPage();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:attendence_management_system/pages/loginPage.dart';
+import 'package:attendence_management_system/pages/employee_signup_screen.dart';
 
 enum UserRole { employee, hr, ceo }
 
@@ -46,6 +47,94 @@ class RoleSelectionPage extends StatelessWidget {
       context,
       MaterialPageRoute(
         builder: (context) => LoginPage(selectedRole: role),
+      ),
+    );
+  }
+
+  void _showInvitationDialog(BuildContext context) {
+    final TextEditingController invitationController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.mail, color: Colors.blue, size: 28),
+            const SizedBox(width: 12),
+            const Text('Join with Invitation'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your invitation ID to set up your account:',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: invitationController,
+              decoration: InputDecoration(
+                labelText: 'Invitation ID',
+                hintText: 'Enter invitation ID',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: const Icon(Icons.key),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'This ID was provided by your administrator',
+                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final invitationId = invitationController.text.trim();
+              if (invitationId.isNotEmpty) {
+                Navigator.pop(context);
+                // Navigate to employee signup screen with invitation ID
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EmployeeSignupScreen(
+                      invitationId: invitationId,
+                    ),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Continue'),
+          ),
+        ],
       ),
     );
   }
@@ -170,6 +259,91 @@ class RoleSelectionPage extends StatelessWidget {
                             ),
                           ))
                       .toList(),
+
+                  // Join with Invitation option
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      Expanded(child: Divider(color: Colors.grey.shade300)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  Container(
+                    width: double.infinity,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _showInvitationDialog(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            border:
+                                Border.all(color: Colors.blue.withOpacity(0.3)),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.blue.withOpacity(0.05),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(
+                                  Icons.mail,
+                                  color: Colors.blue,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Join with Invitation',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Have an invitation ID? Set up your account here',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.blue,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),

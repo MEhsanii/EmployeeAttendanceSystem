@@ -3,20 +3,47 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:attendence_management_system/pages/role_selection_page.dart';
 import 'package:attendence_management_system/pages/employee_history_screen.dart';
+import 'package:attendence_management_system/pages/add_employee_screen.dart';
 
-class CEODashboard extends StatelessWidget {
-  const CEODashboard({super.key});
+class AdminDashboard extends StatefulWidget {
+  final String userRole; // 'ceo' or 'hr'
 
+  const AdminDashboard({super.key, required this.userRole});
+
+  @override
+  State<AdminDashboard> createState() => _AdminDashboardState();
+}
+
+class _AdminDashboardState extends State<AdminDashboard> {
   static const Color bpgGreen = Color(0xFF2E4A2C);
 
-  Future<void> _signOut(BuildContext context) async {
+  bool get isCEO => widget.userRole.toLowerCase() == 'ceo';
+
+  String get dashboardTitle => isCEO ? 'CEO Dashboard' : 'HR Dashboard';
+  String get welcomeTitle => isCEO ? 'CEO Portal' : 'HR Manager Portal';
+  IconData get dashboardIcon =>
+      isCEO ? Icons.business_center : Icons.people_alt;
+
+  String get description => isCEO
+      ? 'You have full access to all employee data and can approve pending requests.'
+      : 'Manage employee attendance, leave requests, and HR operations.';
+
+  Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
-        (route) => false,
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const RoleSelectionPage()),
+      (route) => false,
+    );
+  }
+
+  void _navigateToAddEmployee() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddEmployeeScreen(),
+      ),
+    );
   }
 
   @override
@@ -25,9 +52,10 @@ class CEODashboard extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'CEO Dashboard',
-          style: TextStyle(color: Colors.white),
+        title: Text(
+          dashboardTitle,
+          style:
+              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: bpgGreen,
         elevation: 0,
@@ -37,7 +65,7 @@ class CEODashboard extends StatelessWidget {
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (value) {
               if (value == 'logout') {
-                _signOut(context);
+                _signOut();
               }
             },
             itemBuilder: (context) => [
@@ -66,6 +94,8 @@ class CEODashboard extends StatelessWidget {
         ],
       ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Color(0xFF30492D), Color(0xFF4CAF50)],
@@ -73,96 +103,136 @@ class CEODashboard extends StatelessWidget {
             end: Alignment.bottomCenter,
           ),
         ),
-        child: Column(
-          children: [
-            // Header Section
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Header Section
+              Container(
+                padding: const EdgeInsets.all(24),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        dashboardIcon,
+                        size: 40,
+                        color: bpgGreen,
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              welcomeTitle,
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: bpgGreen,
+                              ),
+                            ),
+                            Text(
+                              'Welcome, ${user?.email ?? 'Admin'}!',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              description,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.business_center,
-                      size: 40,
-                      color: bpgGreen,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+
+              // Employees Section
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title with Add Employee button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
-                            'CEO Dashboard',
+                            'All Employees',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color: bpgGreen,
                             ),
                           ),
-                          Text(
-                            'Welcome, ${user?.email ?? 'CEO'}!',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
+                          if (isCEO)
+                            ElevatedButton.icon(
+                              onPressed: _navigateToAddEmployee,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: bpgGreen,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  side: BorderSide(color: bpgGreen, width: 1.5),
+                                ),
+                                elevation: 2,
+                              ),
+                              icon: const Icon(Icons.person_add, size: 18),
+                              label: const Text(
+                                'Add Employee',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Employees Section
-            Expanded(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 24),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Colors.black26,
-                      blurRadius: 8,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'All Employees',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: bpgGreen,
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: _buildEmployeesList(),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: _buildEmployeesList(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-          ],
+            ],
+          ),
         ),
       ),
     );
