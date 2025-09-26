@@ -75,6 +75,8 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
         'requestedDates': requested,
         'statusByDate': {for (final d in requested) d: 'pending'},
         'note': _noteCtrl.text.trim(),
+        // store review metadata per date after admin action
+        'reviewsByDate': <String, dynamic>{},
       };
 
       final topRef = _db.collection('homeOfficeRequests').doc();
