@@ -1,5 +1,4 @@
 import 'package:attendence_management_system/pages/AttendanceScreen.dart';
-import 'package:attendence_management_system/pages/loginPage.dart';
 import 'package:attendence_management_system/pages/role_selection_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -43,15 +42,32 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
     final dateId =
         "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('approvedHomeOffice')
-        .doc(dateId)
-        .get();
+    try {
+      // Check in the global homeOfficeRequests collection
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('homeOfficeRequests')
+          .where('userId', isEqualTo: user.uid)
+          .get();
 
-    if (mounted) {
-      setState(() => _homeOfficeApprovedToday = snap.exists);
+      bool isApproved = false;
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final statusByDate =
+            Map<String, dynamic>.from(data['statusByDate'] ?? {});
+        if (statusByDate[dateId] == 'approved') {
+          isApproved = true;
+          break;
+        }
+      }
+
+      if (mounted) {
+        setState(() => _homeOfficeApprovedToday = isApproved);
+      }
+    } catch (e) {
+      print('Error checking home office approval: $e');
+      if (mounted) {
+        setState(() => _homeOfficeApprovedToday = false);
+      }
     }
   }
 
@@ -146,15 +162,29 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
   }
 
   void _handleWorkModeSelection(String mode) async {
-    if (_selectedWorkMode == null && mode != _vacationModeTitle) {
-      await _saveWorkMode(context, mode);
+    // If a mode is already selected, taps only navigate and do NOT change mode.
+    if (_selectedWorkMode != null) {
+      if (mode == "Sick") {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const SickScreen()),
+        );
+      } else if (mode == "Office") {
+        _goToMainAttendanceScreen();
+      }
+      return;
     }
 
-    if (mode == _vacationModeTitle) {
+    // Initial selection when nothing is chosen yet: persist then navigate.
+    await _saveWorkMode(context, mode);
+
+    if (mode == "Sick") {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const VacationScreen()),
+        MaterialPageRoute(builder: (context) => const SickScreen()),
       );
+    } else if (mode == "Office") {
+      _goToMainAttendanceScreen();
     }
   }
 
@@ -369,7 +399,6 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
   }
 
   Widget _buildSlideDownMenus() {
-    final isSomethingSelected = _selectedWorkMode != null;
     final disableAllWorkTiles = _isTodayHoliday; // NEW
 
     return Column(
@@ -384,14 +413,36 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
             _saveExpansionState();
           },
           children: [
-            _buildMenuTile(
-              label: _selectedWorkMode ?? "Office",
-              icon: Icons.apartment,
-              disabled: disableAllWorkTiles &&
-                  (isSomethingSelected),
-              onTap: () => _handleWorkModeSelection("Office"),
-              selected: _selectedWorkMode != "",
+            _buildWorkModeCard(
+              label:
+                  _selectedWorkMode == "Home Office" ? "Home Office" : "Office",
+              icon: _selectedWorkMode == "Home Office"
+                  ? Icons.home_work
+                  : Icons.apartment,
+              workMode: "Office",
+              disabled: disableAllWorkTiles,
             ),
+            const SizedBox(height: 8),
+            _buildWorkModeCard(
+              label: "Sick",
+              icon: Icons.sick,
+              workMode: "Sick",
+              disabled: disableAllWorkTiles,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Leave - Sick only
+        _expansionCard(
+          title: "Requests",
+          icon: Icons.event_available_outlined,
+          initiallyExpanded: _expLeave,
+          onChanged: (v) {
+            setState(() => _expLeave = v);
+            _saveExpansionState();
+          },
+          children: [
             _buildMenuTile(
               label: "Request Home Office",
               icon: Icons.home_work,
@@ -413,30 +464,6 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
                 );
               },
               selected: false,
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Leave - Sick only
-        _expansionCard(
-          title: "Leave",
-          icon: Icons.event_available_outlined,
-          initiallyExpanded: _expLeave,
-          onChanged: (v) {
-            setState(() => _expLeave = v);
-            _saveExpansionState();
-          },
-
-          children: [
-
-            _buildMenuTile(
-              label: "Sick",
-              icon: Icons.sick,
-              disabled: disableAllWorkTiles ||
-                  (isSomethingSelected && _selectedWorkMode != "Sick"),
-              onTap: () => _handleWorkModeSelection("Sick"),
-              selected: _selectedWorkMode == "Sick",
             ),
           ],
         ),
@@ -568,6 +595,105 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
     );
   }
 
+  Widget _buildWorkModeCard({
+    required String label,
+    required IconData icon,
+    required String workMode,
+    bool disabled = false,
+  }) {
+    final isSelected = (workMode == "Office" &&
+            (_selectedWorkMode == "Office" ||
+                _selectedWorkMode == "Home Office")) ||
+        (workMode == "Sick" && _selectedWorkMode == "Sick");
+    final canSelectHomeOffice = workMode == "Office" &&
+        _homeOfficeApprovedToday &&
+        _selectedWorkMode == null;
+
+    return IgnorePointer(
+      ignoring: disabled,
+      child: Opacity(
+        opacity: disabled ? 0.5 : 1.0,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color:
+                  isSelected ? const Color(0xFF2E7D32) : Colors.grey.shade300,
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ListTile(
+            leading: Icon(
+              icon,
+              color:
+                  isSelected ? const Color(0xFF2E7D32) : Colors.grey.shade600,
+              size: 28,
+            ),
+            title: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isSelected ? const Color(0xFF2E7D32) : Colors.black87,
+                fontSize: 16,
+              ),
+            ),
+            subtitle: canSelectHomeOffice
+                ? const Text(
+                    "Home office available",
+                    style: TextStyle(
+                      color: Color(0xFF2E7D32),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  )
+                : null,
+            trailing: isSelected
+                ? const Icon(
+                    Icons.check_circle,
+                    color: Color(0xFF2E7D32),
+                    size: 24,
+                  )
+                : const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.grey,
+                    size: 16,
+                  ),
+            onTap: () => _handleWorkModeSelection(workMode),
+            onLongPress: () async {
+              // Long-press lets user update mode later on
+              if (workMode == "Office") {
+                await _saveWorkMode(context, "Office");
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Work mode set to Office')),
+                );
+              } else if (workMode == "Sick") {
+                // Set Sick without navigation; tap will navigate
+                if (_selectedWorkMode != "Sick") {
+                  await _saveWorkMode(context, "Sick");
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Work mode set to Sick')),
+                  );
+                }
+              }
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+
   Widget _buildMenuTile({
     required String label,
     required IconData icon,
@@ -576,7 +702,7 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
     bool selected = false,
   }) {
     return IgnorePointer(
-      ignoring: disabled, // <-- actually blocks taps
+      ignoring: disabled,
       child: Opacity(
         opacity: disabled ? 0.5 : 1.0,
         child: ListTile(
@@ -599,22 +725,7 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
             color: selected ? const Color(0xFF2E7D32) : Colors.grey,
             size: selected ? 20 : 16,
           ),
-          onTap: () async {
-            // ✅ use the callback provided by the caller
-            onTap();
-
-            // Keep your post-tap navigation behavior based on "selected"
-            if (selected) {
-              if (label == "Sick") {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SickScreen()),
-                );
-              } else {
-                _goToMainAttendanceScreen();
-              }
-            }
-          },
+          onTap: onTap,
         ),
       ),
     );

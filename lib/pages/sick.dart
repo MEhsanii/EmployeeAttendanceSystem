@@ -125,8 +125,7 @@ class _SickScreenState extends State<SickScreen> {
             })
           : Column(
               children: [
-                const SizedBox(height: 12),
-                _HeaderCard(),
+
                 const SizedBox(height: 16),
 
                 // Month selector row
@@ -294,40 +293,6 @@ class _EmptyState extends StatelessWidget {
 
 // ======= SMALL, REUSABLE WIDGETS =======
 
-class _HeaderCard extends StatelessWidget {
-  static const _brandSoft = Color(0xFFE8F5E9);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: _brandSoft,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              "You have marked today as Sick.",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: 8),
-            Text(
-              "Get well soon! 💚",
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _SummaryCard extends StatelessWidget {
   final int count;

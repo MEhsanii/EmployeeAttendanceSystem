@@ -1,6 +1,5 @@
 import 'package:attendence_management_system/pages/editing.dart';
 import 'package:attendence_management_system/pages/work_mode_selection_page.dart';
-import 'package:attendence_management_system/pages/home_office.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -38,12 +37,50 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
   };
 
   String? _currentWorkMode;
+  bool _homeOfficeApprovedToday = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     fetchTimestamps();
+    _checkHomeOfficeApproval();
+  }
+
+  Future<void> _checkHomeOfficeApproval() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final now = DateTime.now();
+    final dateId =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+    try {
+      // Check in the global homeOfficeRequests collection
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('homeOfficeRequests')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      bool isApproved = false;
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final statusByDate =
+            Map<String, dynamic>.from(data['statusByDate'] ?? {});
+        if (statusByDate[dateId] == 'approved') {
+          isApproved = true;
+          break;
+        }
+      }
+
+      if (mounted) {
+        setState(() => _homeOfficeApprovedToday = isApproved);
+      }
+    } catch (e) {
+      print('Error checking home office approval: $e');
+      if (mounted) {
+        setState(() => _homeOfficeApprovedToday = false);
+      }
+    }
   }
 
   @override
@@ -307,25 +344,32 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                         ),
                         const SizedBox(width: 6),
                         ElevatedButton.icon(
-                          onPressed: _currentWorkMode != 'Home Office'
+                          onPressed: (_homeOfficeApprovedToday &&
+                                  _currentWorkMode != 'Home Office')
                               ? () => setWorkMode('Home Office')
                               : null,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade600,
+                            backgroundColor: _currentWorkMode == 'Home Office'
+                                ? Colors.green.shade600
+                                : (_homeOfficeApprovedToday
+                                    ? Colors.green.shade600
+                                    : Colors.grey.shade400),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            elevation: 1,
+                            elevation: _homeOfficeApprovedToday ? 1 : 0,
                           ),
-                          icon: const Icon(
-                            Icons.home_work,
+                          icon: Icon(
+                            _currentWorkMode == 'Home Office'
+                                ? Icons.check_circle
+                                : Icons.home_work,
                             size: 14,
                           ),
                           label: Text(
-                            'Home',
+                            _homeOfficeApprovedToday ? 'Home' : 'Home',
                             style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,

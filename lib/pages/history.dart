@@ -500,7 +500,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   _chip(
                       text: d.holidayName ?? "Holiday",
                       icon: Icons.beach_access),
-                if (!d.isHoliday && d.workMode != null) ...[
+                if (!d.isHoliday && d.workMode != null && d.workMode != "Sick") ...[
                   const SizedBox(width: 6),
                   _chip(
                     text: d.workMode!,
@@ -511,7 +511,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
                 if (d.workMode == 'Sick') ...[
                   const SizedBox(width: 6),
-                  _chip(text: 'Sick', icon: Icons.add_box),
+                  _chip(text: 'Sick', icon: Icons.add_box, iconColor: Colors.amber),
                 ],
               ],
             ),
@@ -564,7 +564,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _chip({required String text, required IconData icon}) {
+  Widget _chip({
+    required String text,
+    required IconData icon,
+    Color? iconColor, // optional & nullable
+  }){
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -572,10 +576,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: const Color(0xFF2E7D32)),
+        Icon(icon, size: 14, color: iconColor ?? const Color(0xFF2E7D32)),
         const SizedBox(width: 4),
         Text(text,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF2E7D32))),
+            style: TextStyle(fontSize: 12, color: iconColor ?? Color(0xFF2E7D32))),
       ]),
     );
   }
