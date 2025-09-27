@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:attendence_management_system/pages/role_selection_page.dart';
 import 'package:attendence_management_system/pages/employee_history_screen.dart';
 import 'package:attendence_management_system/pages/add_employee_screen.dart';
+import 'package:attendence_management_system/pages/announcements.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String userRole; // 'ceo' or 'hr'
@@ -52,6 +53,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context,
       MaterialPageRoute(
         builder: (context) => const AddEmployeeScreen(),
+      ),
+    );
+  }
+
+  void _navigateToAnnouncements() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AnnouncementsPage(),
       ),
     );
   }
@@ -205,6 +215,35 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 ),
               ),
 
+              // Quick Actions Section
+              Container(
+                margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildQuickActionCard(
+                        title: 'Announcements',
+                        subtitle: 'View & Manage Posts',
+                        icon: Icons.campaign,
+                        color: Colors.orange,
+                        onTap: _navigateToAnnouncements,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    if (isCEO)
+                      Expanded(
+                        child: _buildQuickActionCard(
+                          title: 'Add Employee',
+                          subtitle: 'Register New Staff',
+                          icon: Icons.person_add,
+                          color: Colors.blue,
+                          onTap: _navigateToAddEmployee,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
               // Employees Section
               Expanded(
                 child: Container(
@@ -224,44 +263,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title with Add Employee button
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'All Employees',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: bpgGreen,
-                            ),
-                          ),
-                          if (isCEO)
-                            ElevatedButton.icon(
-                              onPressed: _navigateToAddEmployee,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: bpgGreen,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  side: BorderSide(color: bpgGreen, width: 1.5),
-                                ),
-                                elevation: 2,
-                              ),
-                              icon: const Icon(Icons.person_add, size: 18),
-                              label: const Text(
-                                'Add Employee',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                        ],
+                      const Text(
+                        'All Employees',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: bpgGreen,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Expanded(
@@ -269,6 +277,70 @@ class _AdminDashboardState extends State<AdminDashboard> {
                       ),
                     ],
                   ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickActionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: bpgGreen,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
