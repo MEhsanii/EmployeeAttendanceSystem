@@ -39,6 +39,30 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
             ),
           ],
         ),
+        // actions: [
+        //   // Debug-only seeding trigger
+        //   if (!bool.fromEnvironment('dart.vm.product'))
+        //     IconButton(
+        //       icon: const Icon(Icons.cloud_upload, color: Colors.white),
+        //       tooltip: 'Seed holidays from asset',
+        //       onPressed: () async {
+        //         ScaffoldMessenger.of(context).showSnackBar(
+        //           const SnackBar(content: Text('Seeding holidays...')),
+        //         );
+        //         try {
+        //           await HolidayService.seedFromAssetIfEmpty();
+        //           setState(() {});
+        //           ScaffoldMessenger.of(context).showSnackBar(
+        //             const SnackBar(content: Text('Holidays seeded.')),
+        //           );
+        //         } catch (e) {
+        //           ScaffoldMessenger.of(context).showSnackBar(
+        //             SnackBar(content: Text('Seed failed: $e')),
+        //           );
+        //         }
+        //       },
+        //     ),
+        // ],
       ),
       body: FutureBuilder<List<Holiday>>(
         future: HolidayService.holidaysForYear(_year),

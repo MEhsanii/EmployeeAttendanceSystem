@@ -243,6 +243,13 @@ service cloud.firestore {
                         (resource.data.userId == request.auth.uid || isAdmin());
       }
     }
+
+    match /holidays/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null; // TEMP for seeding only
+    }
+
+
     
     // Default rule - deny all other collections
     match /{document=**} {
