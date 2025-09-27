@@ -1,5 +1,6 @@
 import 'package:attendence_management_system/pages/editing.dart';
 import 'package:attendence_management_system/pages/work_mode_selection_page.dart';
+import 'package:attendence_management_system/pages/home_office.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,8 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     'endBreak': null,
     'endWork': null,
   };
+
+  String? _currentWorkMode;
 
   @override
   void initState() {
@@ -81,7 +84,46 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
           'endBreak': data['endBreak'],
           'endWork': data['endWork'],
         };
+        _currentWorkMode = data['workMode'];
       });
+    }
+  }
+
+  Future<void> setWorkMode(String mode) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('attendance')
+        .doc(dateKey);
+
+    try {
+      await docRef.set({
+        'workMode': mode,
+        'createdAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() {
+          _currentWorkMode = mode;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Work mode set to $mode')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error setting work mode: $e')),
+        );
+      }
     }
   }
 
@@ -168,6 +210,7 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
             bottom: 14,
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               IconButton(
                 icon:
@@ -208,32 +251,138 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         child: SingleChildScrollView(
           child: Column(
             children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.today, size: 16, color: appGreen),
+                    const SizedBox(width: 6),
+                    Text(
+                      "Today • ${_weekdayName(now.weekday)}, ${_monthNameLong(now.month)} ${now.day}",
+                      style: const TextStyle(
+                        color: appGreen,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _currentWorkMode != 'Office'
+                              ? () => setWorkMode('Office')
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _currentWorkMode == 'Office'
+                                ? Colors.blue.shade600
+                                : Colors.white,
+                            foregroundColor: _currentWorkMode == 'Office'
+                                ? Colors.white
+                                : Colors.blue.shade700,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            elevation: 1,
+                          ),
+                          icon: Icon(
+                            _currentWorkMode == 'Office'
+                                ? Icons.check_circle
+                                : Icons.apartment,
+                            size: 14,
+                          ),
+                          label: Text(
+                            'Office',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        ElevatedButton.icon(
+                          onPressed: _currentWorkMode != 'Home Office'
+                              ? () => setWorkMode('Home Office')
+                              : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green.shade600,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            elevation: 1,
+                          ),
+                          icon: const Icon(
+                            Icons.home_work,
+                            size: 14,
+                          ),
+                          label: Text(
+                            'Home',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              // Current work mode indicator
+              if (_currentWorkMode != null) ...[
+                Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
-                    borderRadius: BorderRadius.circular(12),
+                    color: _currentWorkMode == 'Home Office'
+                        ? Colors.green.shade50
+                        : Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _currentWorkMode == 'Home Office'
+                          ? Colors.green.shade200
+                          : Colors.blue.shade200,
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.today, size: 16, color: appGreen),
+                      Icon(
+                        _currentWorkMode == 'Home Office'
+                            ? Icons.home_work
+                            : Icons.apartment,
+                        size: 16,
+                        color: _currentWorkMode == 'Home Office'
+                            ? Colors.green.shade700
+                            : Colors.blue.shade700,
+                      ),
                       const SizedBox(width: 6),
                       Text(
-                        "Today • ${_weekdayName(now.weekday)}, ${_monthNameLong(now.month)} ${now.day}",
-                        style: const TextStyle(
-                          color: appGreen,
-                          fontWeight: FontWeight.w800,
+                        'Today: $_currentWorkMode',
+                        style: TextStyle(
+                          color: _currentWorkMode == 'Home Office'
+                              ? Colors.green.shade700
+                              : Colors.blue.shade700,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 14),
+                const SizedBox(height: 14),
+              ],
+
               _buildActionCard('Start Work', 'startWork'),
               _buildActionCard('Start Break', 'startBreak'),
               _buildActionCard('End Break', 'endBreak'),

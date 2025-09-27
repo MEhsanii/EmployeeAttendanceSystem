@@ -54,7 +54,6 @@ class _VacationScreenState extends State<VacationScreen> {
   DateTime? _endDate;
   bool _isSubmitting = false;
   bool _isCEO = false;
-  bool _showAll = true;
 
   @override
   void initState() {
@@ -82,8 +81,10 @@ class _VacationScreenState extends State<VacationScreen> {
     return null;
   }
 
-  bool _isInReview(String status) =>
-      status == 'In Review' || status == 'Pending';
+  bool _isInReview(String status) {
+    final s = status.toString();
+    return s == 'In Review' || s == 'Pending' || s.toLowerCase() == 'pending';
+  }
 
   String _statusLabel(String status) {
     if (status == 'Pending') return 'In Review';
@@ -125,6 +126,36 @@ class _VacationScreenState extends State<VacationScreen> {
     // Only skip holidays from this year
     final yearSkip = (skipDays ?? {}).where((d) => d.year == year).toSet();
     return _businessDaysInclusive(s, e, skipDays: yearSkip);
+  }
+
+  Future<int> _computeRemainingDays(String userId, int year) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('vacationRequests')
+          .where('userId', isEqualTo: userId)
+          .get();
+      int approved = 0;
+      int inReview = 0;
+      for (final doc in snap.docs) {
+        final d = doc.data();
+        final status = (d['status'] ?? 'pending').toString().toLowerCase();
+        final start = _toDate(d['startDate']);
+        final end = _toDate(d['endDate']);
+        if (start == null || end == null) continue;
+        final days =
+            _businessDaysInYear(start, end, year, skipDays: _holidaySet);
+        if (status == 'approved') {
+          approved += days;
+        } else if (_isInReview(status)) {
+          inReview += days;
+        }
+      }
+      const totalPerYear = 25;
+      final remaining = totalPerYear - approved - inReview;
+      return remaining.clamp(0, totalPerYear);
+    } catch (_) {
+      return 0;
+    }
   }
 
   // --- NEW: Method to open the custom team range picker ---
@@ -194,7 +225,8 @@ class _VacationScreenState extends State<VacationScreen> {
 
         for (final doc in docs) {
           final d = doc.data() as Map<String, dynamic>;
-          final status = (d['status'] ?? 'In Review').toString();
+          final rawStatus = (d['status'] ?? 'In Review').toString();
+          final status = rawStatus.toLowerCase();
           final start = _toDate(d['startDate']);
           final end = _toDate(d['endDate']);
           if (start == null || end == null) continue;
@@ -202,15 +234,17 @@ class _VacationScreenState extends State<VacationScreen> {
           final daysInThisYear =
               _businessDaysInYear(start, end, year, skipDays: _holidaySet);
 
-          if (status == 'Approved') {
+          if (status == 'approved') {
             approvedDays += daysInThisYear;
-          } else if (_isInReview(status)) {
+          } else if (_isInReview(rawStatus)) {
             inReviewDays += daysInThisYear;
           }
         }
 
         const totalPerYear = 25;
-        final remaining = (totalPerYear - approvedDays).clamp(0, totalPerYear);
+        // Deduct both approved and in-review requests from remaining
+        final remaining =
+            (totalPerYear - approvedDays - inReviewDays).clamp(0, totalPerYear);
 
         return Card(
           color: Colors.green.shade50,
@@ -309,6 +343,20 @@ class _VacationScreenState extends State<VacationScreen> {
       final workingDays =
           _businessDaysInclusive(_startDate!, _endDate!, skipDays: _holidaySet);
 
+      // Enforce annual limit: deduct both approved and in-review days
+      final userId = user.uid;
+      final year = DateTime.now().year;
+      final remaining = await _computeRemainingDays(userId, year);
+      if (workingDays > remaining) {
+        Navigator.pop(context); // close loading if opened later
+        _showAlert(
+            'Limit exceeded',
+            'You have $remaining day(s) remaining for this year. '
+                'Selected range requires $workingDays business day(s).');
+        setState(() => _isSubmitting = false);
+        return;
+      }
+
       final request = {
         'userId': user.uid,
         'userEmail': user.email,
@@ -318,8 +366,14 @@ class _VacationScreenState extends State<VacationScreen> {
         'endDate': Timestamp.fromDate(_dateOnly(_endDate!)),
         'durationDays': _endDate!.difference(_startDate!).inDays + 1,
         'businessDays': workingDays,
-        'status': 'In Review',
+        'status': 'pending', // Changed to match home office pattern
         'submittedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(), // Add for consistency
+        // Add review metadata structure for admin actions
+        'reviewedBy': null,
+        'reviewedByName': null,
+        'reviewNote': '',
+        'reviewedAt': null,
       };
 
       await FirebaseFirestore.instance
@@ -520,21 +574,23 @@ class _VacationScreenState extends State<VacationScreen> {
   void _showSuccessDialog() {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogCtx) => AlertDialog(
         title: const Text("Request Submitted"),
         content:
             const Text("Your vacation request has been sent for approval."),
         actions: [
           TextButton(
-              onPressed: () {
-                Navigator.of(context).popUntil((route) => route.isFirst);
-                setState(() {
-                  _startDate = null;
-                  _endDate = null;
-                  _noteController.clear();
-                });
-              },
-              child: const Text("OK")),
+            onPressed: () {
+              // Close only this dialog using its own BuildContext
+              Navigator.of(dialogCtx).pop();
+              setState(() {
+                _startDate = null;
+                _endDate = null;
+                _noteController.clear();
+              });
+            },
+            child: const Text("OK"),
+          ),
         ],
       ),
     );
@@ -625,25 +681,6 @@ class _VacationScreenState extends State<VacationScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            if (!_isCEO)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    _showAll
-                        ? "Show everyone's requests"
-                        : "Show my requests only",
-                    style: const TextStyle(fontSize: 14, color: Colors.black54),
-                  ),
-                  Switch(
-                    value: !_showAll,
-                    onChanged: (v) => setState(() => _showAll = !v),
-                    activeColor: Colors.green.shade700,
-                    activeTrackColor: Colors.green.shade300,
-                  ),
-                ],
-              ),
-            const SizedBox(height: 10),
             const SizedBox(height: 10),
             SizedBox(
               height: 300, // Constrained height for the list
@@ -653,12 +690,11 @@ class _VacationScreenState extends State<VacationScreen> {
                 }
                 final base =
                     FirebaseFirestore.instance.collection('vacationRequests');
-                final Query q = (_isCEO || _showAll)
-                    ? base.orderBy('submittedAt', descending: true).limit(100)
-                    : base
-                        .where('userId', isEqualTo: user.uid)
-                        .orderBy('submittedAt', descending: true)
-                        .limit(30);
+                // For non-CEO users, remove ordering to avoid index requirement
+                // CEO queries work because they don't have the userId filter
+                final Query q = _isCEO
+                    ? base.orderBy('createdAt', descending: true).limit(100)
+                    : base.where('userId', isEqualTo: user.uid).limit(30);
 
                 return StreamBuilder<QuerySnapshot>(
                   stream: q.snapshots(),
@@ -667,12 +703,55 @@ class _VacationScreenState extends State<VacationScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
                     if (snap.hasError) {
+                      // Handle permission errors gracefully
+                      final errorMsg = snap.error.toString();
+                      if (errorMsg.contains('permission') ||
+                          errorMsg.contains(
+                              'Missing or insufficient permissions')) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.lock_outline,
+                                  size: 48, color: Colors.grey.shade400),
+                              const SizedBox(height: 12),
+                              const Text(
+                                "Unable to load your vacation requests",
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "This might be due to missing user data.\nTry submitting a new request.",
+                                style: TextStyle(
+                                    fontSize: 14, color: Colors.grey.shade600),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        );
+                      }
                       return Center(child: Text("Error: ${snap.error}"));
                     }
                     final docs = snap.data?.docs ?? [];
                     if (docs.isEmpty) {
                       return const Center(child: Text("No requests yet."));
                     }
+
+                    // Sort docs manually by createdAt for non-CEO users (since we removed orderBy)
+                    if (!_isCEO) {
+                      docs.sort((a, b) {
+                        final aData = a.data() as Map<String, dynamic>;
+                        final bData = b.data() as Map<String, dynamic>;
+                        final aTime = aData['createdAt'] as Timestamp?;
+                        final bTime = bData['createdAt'] as Timestamp?;
+                        if (aTime == null && bTime == null) return 0;
+                        if (aTime == null) return 1;
+                        if (bTime == null) return -1;
+                        return bTime.compareTo(aTime); // descending order
+                      });
+                    }
+
                     return ListView.builder(
                       itemCount: docs.length,
                       itemBuilder: (context, i) {
@@ -709,10 +788,8 @@ class _VacationScreenState extends State<VacationScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text("Status: $status"),
-                                if (_showAll || _isCEO)
-                                  Text("By: $requesterName"),
-                                if (note.isNotEmpty && (_isCEO || !_showAll))
-                                  Text("Note: $note"),
+                                if (_isCEO) Text("By: $requesterName"),
+                                if (note.isNotEmpty) Text("Note: $note"),
                               ],
                             ),
                             trailing: _isCEO

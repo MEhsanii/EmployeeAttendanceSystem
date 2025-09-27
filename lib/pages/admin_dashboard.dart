@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import 'package:attendence_management_system/pages/role_selection_page.dart';
 import 'package:attendence_management_system/pages/employee_history_screen.dart';
 import 'package:attendence_management_system/pages/add_employee_screen.dart';
@@ -479,7 +480,7 @@ class _AdminRequestsPageState extends State<_AdminRequestsPage>
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FA),
         appBar: AppBar(
-          title: const Text('Home Office Requests',
+          title: const Text('Employee Requests',
               style:
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: bpgGreen,
@@ -529,9 +530,9 @@ class _AdminRequestsPageState extends State<_AdminRequestsPage>
         ),
         body: const TabBarView(
           children: [
-            _RequestsTab(filter: 'pending'),
-            _RequestsTab(filter: 'approved'),
-            _RequestsTab(filter: 'rejected'),
+            _CombinedRequestsTab(filter: 'pending'),
+            _CombinedRequestsTab(filter: 'approved'),
+            _CombinedRequestsTab(filter: 'rejected'),
           ],
         ),
       ),
@@ -539,9 +540,64 @@ class _AdminRequestsPageState extends State<_AdminRequestsPage>
   }
 }
 
-class _RequestsTab extends StatelessWidget {
+class _CombinedRequestsTab extends StatelessWidget {
   final String filter; // 'pending' | 'approved' | 'rejected'
-  const _RequestsTab({required this.filter});
+  const _CombinedRequestsTab({required this.filter});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Home Office Requests Section
+          Row(
+            children: [
+              Icon(Icons.home_work, color: Colors.blue.shade700, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Home Office Requests',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _HomeOfficeRequestsList(filter: filter),
+
+          const SizedBox(height: 24),
+
+          // Vacation Requests Section
+          Row(
+            children: [
+              Icon(Icons.flight_takeoff,
+                  color: Colors.green.shade700, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Vacation Requests',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.green.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _VacationRequestsList(filter: filter),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeOfficeRequestsList extends StatelessWidget {
+  final String filter;
+  const _HomeOfficeRequestsList({required this.filter});
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
@@ -555,19 +611,16 @@ class _RequestsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = FirebaseFirestore.instance.collection('homeOfficeRequests');
-    // We store per-date status in statusByDate; top-level filter uses arrayContains for performance
-    final query = filter == 'pending'
-        ? base
-            .where('statusByDate', isNotEqualTo: null)
-            .orderBy('createdAt', descending: true)
-            .limit(100)
-        : base.orderBy('createdAt', descending: true).limit(100);
+    final query = base.orderBy('createdAt', descending: true).limit(100);
 
     return StreamBuilder<QuerySnapshot>(
       stream: query.snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
         final docs = snap.data?.docs ?? [];
         final filtered = docs.where((doc) {
@@ -576,48 +629,20 @@ class _RequestsTab extends StatelessWidget {
               Map<String, dynamic>.from(data['statusByDate'] ?? {});
           return statusByDate.values.any((v) => v == filter);
         }).toList();
+
         if (filtered.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  filter == 'pending'
-                      ? Icons.hourglass_empty
-                      : filter == 'approved'
-                          ? Icons.check_circle_outline
-                          : Icons.cancel_outlined,
-                  size: 64,
-                  color: Colors.grey.shade400,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'No $filter requests',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  filter == 'pending'
-                      ? 'All requests have been reviewed'
-                      : 'No requests found',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey.shade500,
-                  ),
-                ),
-              ],
+          return Container(
+            height: 80,
+            alignment: Alignment.center,
+            child: Text(
+              'No $filter home office requests',
+              style: TextStyle(color: Colors.grey.shade600),
             ),
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filtered.length,
-          itemBuilder: (context, i) {
-            final doc = filtered[i];
+
+        return Column(
+          children: filtered.map((doc) {
             final data = doc.data() as Map<String, dynamic>;
             final userEmail = data['userEmail'] ?? '';
             final requestedDates =
@@ -638,48 +663,36 @@ class _RequestsTab extends StatelessWidget {
                     : Colors.orange;
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 16),
+              margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: statusColor.withOpacity(0.2)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
                   ),
                 ],
-                border: Border.all(
-                  color: statusColor.withOpacity(0.2),
-                  width: 1,
-                ),
               ),
               child: ExpansionTile(
                 tilePadding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 leading: Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Icon(
-                    filter == 'pending'
-                        ? Icons.hourglass_empty
-                        : filter == 'approved'
-                            ? Icons.check_circle
-                            : Icons.cancel,
-                    color: statusColor,
-                    size: 24,
-                  ),
+                  child:
+                      const Icon(Icons.home_work, color: Colors.blue, size: 18),
                 ),
                 title: Text(
-                  userEmail.isEmpty ? 'Request' : userEmail,
+                  userEmail.isEmpty ? 'Home Office Request' : userEmail,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
+                      fontWeight: FontWeight.w600, fontSize: 14),
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -688,168 +701,620 @@ class _RequestsTab extends StatelessWidget {
                     Text(
                       '${shownDates.length} day(s) • ${filter.toUpperCase()}',
                       style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.w500,
-                      ),
+                          color: statusColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12),
                     ),
                     if (createdAt != null) ...[
                       const SizedBox(height: 2),
                       Text(
                         'Requested ${_formatDate(createdAt.toDate())}',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
-                          fontSize: 12,
-                        ),
+                            color: Colors.grey.shade600, fontSize: 11),
                       ),
                     ],
                   ],
                 ),
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (employeeNote.isNotEmpty) ...[
+                  if (employeeNote.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Employee Note:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade700,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            employeeNote,
+                            style: TextStyle(
+                                color: Colors.blue.shade800, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Show reviewer info for non-pending home office requests
+                  if (filter != 'pending') ...[
+                    for (final dateId in shownDates)
+                      if (reviewsByDate[dateId] != null &&
+                          reviewsByDate[dateId]['byName'] != null) ...[
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade200),
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.grey.shade300),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.note_alt,
-                                      size: 16, color: Colors.blue.shade700),
+                                  Icon(
+                                    filter == 'approved'
+                                        ? Icons.check_circle
+                                        : Icons.cancel,
+                                    size: 16,
+                                    color: filter == 'approved'
+                                        ? Colors.green
+                                        : Colors.red,
+                                  ),
                                   const SizedBox(width: 6),
                                   Text(
-                                    'Employee Note',
+                                    '$dateId - Reviewed by ${reviewsByDate[dateId]['byName']}',
                                     style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      color: Colors.blue.shade700,
+                                      color: Colors.grey.shade700,
+                                      fontSize: 12,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                employeeNote,
-                                style: TextStyle(color: Colors.blue.shade800),
-                              ),
+                              if (reviewsByDate[dateId]['note'] != null &&
+                                  reviewsByDate[dateId]['note']
+                                      .toString()
+                                      .isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  reviewsByDate[dateId]['note'].toString(),
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                              if (reviewsByDate[dateId]['decidedAt'] !=
+                                  null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'on ${DateFormat('MMM d, yyyy').format((reviewsByDate[dateId]['decidedAt'] as Timestamp).toDate())}',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 11,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
                       ],
-                      const Text(
-                        'Requested Dates',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 16),
+                    const SizedBox(height: 12),
+                  ],
+
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final d in shownDates)
+                        _DecisionChip(
+                          requestId: doc.id,
+                          dateId: d,
+                          currentStatus: statusByDate[d] ?? 'pending',
+                          review:
+                              Map<String, dynamic>.from(reviewsByDate[d] ?? {}),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _VacationRequestsList extends StatelessWidget {
+  final String filter;
+  const _VacationRequestsList({required this.filter});
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = now.difference(date).inDays;
+    if (diff == 0) return 'today';
+    if (diff == 1) return 'yesterday';
+    if (diff < 7) return '$diff days ago';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = FirebaseFirestore.instance.collection('vacationRequests');
+    final query = base.orderBy('createdAt', descending: true).limit(100);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: query.snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SizedBox(
+            height: 100,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final docs = snap.data?.docs ?? [];
+        final filtered = docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final status = data['status'] ?? 'pending';
+          return status == filter;
+        }).toList();
+
+        if (filtered.isEmpty) {
+          return Container(
+            height: 80,
+            alignment: Alignment.center,
+            child: Text(
+              'No $filter vacation requests',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          );
+        }
+
+        return Column(
+          children: filtered.map((doc) {
+            final data = doc.data() as Map<String, dynamic>;
+            final userEmail = data['userEmail'] ?? '';
+            final employeeNote = (data['note'] ?? '').toString();
+            final createdAt = data['createdAt'] as Timestamp?;
+            final startDate = (data['startDate'] as Timestamp?)?.toDate();
+            final endDate = (data['endDate'] as Timestamp?)?.toDate();
+            final businessDays = data['businessDays'] ?? 0;
+
+            Color statusColor = filter == 'approved'
+                ? Colors.green
+                : filter == 'rejected'
+                    ? Colors.red
+                    : Colors.orange;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: statusColor.withOpacity(0.2)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ExpansionTile(
+                tilePadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                leading: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.flight_takeoff,
+                      color: Colors.green, size: 18),
+                ),
+                title: Text(
+                  userEmail.isEmpty ? 'Vacation Request' : userEmail,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 4),
+                    if (startDate != null && endDate != null)
+                      Text(
+                        '${DateFormat('MMM d').format(startDate)} - ${DateFormat('MMM d, yyyy').format(endDate)} ($businessDays days)',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w500),
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                    const SizedBox(height: 2),
+                    Text(
+                      filter.toUpperCase(),
+                      style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12),
+                    ),
+                    if (createdAt != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'Requested ${_formatDate(createdAt.toDate())}',
+                        style: TextStyle(
+                            color: Colors.grey.shade600, fontSize: 11),
+                      ),
+                    ],
+                  ],
+                ),
+                children: [
+                  if (employeeNote.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          for (final d in shownDates)
-                            _DecisionChip(
-                              requestId: doc.id,
-                              dateId: d,
-                              currentStatus: statusByDate[d] ?? 'pending',
-                              review: Map<String, dynamic>.from(
-                                  reviewsByDate[d] ?? {}),
+                          Text(
+                            'Employee Note:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade700,
+                              fontSize: 12,
                             ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            employeeNote,
+                            style: TextStyle(
+                                color: Colors.green.shade800, fontSize: 12),
+                          ),
                         ],
                       ),
-                      if (filter != 'pending') ...[
-                        const SizedBox(height: 16),
-                        const Divider(),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(Icons.person_outline,
-                                size: 18, color: Colors.grey.shade700),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Reviewed by',
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Show reviewer info if request was reviewed
+                  if (filter != 'pending' &&
+                      data['reviewedByName'] != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                filter == 'approved'
+                                    ? Icons.check_circle
+                                    : Icons.cancel,
+                                size: 16,
+                                color: filter == 'approved'
+                                    ? Colors.green
+                                    : Colors.red,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Reviewed by ${data['reviewedByName']}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade700,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (data['reviewNote'] != null &&
+                              data['reviewNote'].toString().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              data['reviewNote'].toString(),
                               style: TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 16),
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            for (final d in shownDates)
-                              Builder(builder: (_) {
-                                final r = Map<String, dynamic>.from(
-                                    reviewsByDate[d] ?? {});
-                                final who = (r['byName'] ??
-                                        r['byEmail'] ??
-                                        r['by'] ??
-                                        '')
-                                    .toString();
-                                final note = (r['note'] ?? '').toString();
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border:
-                                        Border.all(color: Colors.grey.shade300),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '$d',
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600),
-                                      ),
-                                      if (who.isNotEmpty) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          who,
-                                          style: TextStyle(
-                                            color: Colors.grey.shade700,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                      if (note.isNotEmpty) ...[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          note,
-                                          style: TextStyle(
-                                            color: Colors.grey.shade600,
-                                            fontSize: 12,
-                                            fontStyle: FontStyle.italic,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                );
-                              }),
+                          if (data['reviewedAt'] != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'on ${DateFormat('MMM d, yyyy').format((data['reviewedAt'] as Timestamp).toDate())}',
+                              style: TextStyle(
+                                color: Colors.grey.shade500,
+                                fontSize: 11,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
                           ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
+                  _VacationDecisionChip(
+                    requestId: doc.id,
+                    currentStatus: filter,
+                    requestData: data,
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+}
+
+class _VacationDecisionChip extends StatefulWidget {
+  final String requestId;
+  final String currentStatus;
+  final Map<String, dynamic> requestData;
+
+  const _VacationDecisionChip({
+    required this.requestId,
+    required this.currentStatus,
+    required this.requestData,
+  });
+
+  @override
+  State<_VacationDecisionChip> createState() => _VacationDecisionChipState();
+}
+
+class _VacationDecisionChipState extends State<_VacationDecisionChip> {
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.currentStatus == 'approved'
+        ? Colors.green
+        : widget.currentStatus == 'rejected'
+            ? Colors.red
+            : Colors.orange;
+
+    final startDate = (widget.requestData['startDate'] as Timestamp?)?.toDate();
+    final endDate = (widget.requestData['endDate'] as Timestamp?)?.toDate();
+    final dateRange = (startDate != null && endDate != null)
+        ? '${DateFormat('MMM d').format(startDate)} - ${DateFormat('MMM d').format(endDate)}'
+        : 'Vacation Request';
+
+    // Check if vacation dates have passed (disable status changes)
+    final today = DateTime.now();
+    final isExpired = startDate != null && startDate.isBefore(today);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: _isLoading || isExpired
+            ? null
+            : () async {
+                setState(() => _isLoading = true);
+                try {
+                  await _showVacationDecisionDialog(context, widget.requestId,
+                      dateRange, widget.currentStatus);
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
+                }
+              },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isLoading)
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                )
+              else
+                Icon(
+                  widget.currentStatus == 'approved'
+                      ? Icons.check_circle
+                      : widget.currentStatus == 'rejected'
+                          ? Icons.cancel
+                          : Icons.hourglass_empty,
+                  color: color,
+                  size: 18,
+                ),
+              const SizedBox(width: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dateRange,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isExpired ? Colors.grey : color,
+                      fontSize: 12,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        widget.currentStatus.toUpperCase(),
+                        style: TextStyle(
+                          color: isExpired ? Colors.grey : color,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (isExpired) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '(EXPIRED)',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w400,
+                          ),
                         ),
                       ],
                     ],
                   ),
                 ],
               ),
-            );
-          },
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _showVacationDecisionDialog(BuildContext context,
+      String requestId, String dateRange, String currentStatus) async {
+    final controller = TextEditingController();
+    final result = await showDialog<_DecisionResult>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.flight_takeoff, color: Colors.green),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Review Vacation Request',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    Text(dateRange,
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.grey.shade600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Add a note (optional):',
+                  style: TextStyle(fontWeight: FontWeight.w500)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Reason for approval/rejection...',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Colors.green, width: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(
+                  context, _DecisionResult('rejected', controller.text.trim())),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Decline'),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(
+                  context, _DecisionResult('approved', controller.text.trim())),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Approve'),
+            ),
+          ],
         );
       },
     );
+    if (result == null) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    // resolve reviewer display name once (outside transaction)
+    String? reviewerName;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = snap.data();
+      reviewerName = (data != null ? (data['userName'] as String?) : null) ??
+          user.displayName;
+    } catch (_) {}
+
+    final docRef = FirebaseFirestore.instance
+        .collection('vacationRequests')
+        .doc(requestId);
+    await docRef.update({
+      'status': result.status,
+      'reviewedBy': user.uid,
+      'reviewedByName': reviewerName,
+      'reviewNote': result.note,
+      'reviewedAt': FieldValue.serverTimestamp(),
+    });
   }
 }
 
@@ -881,6 +1346,13 @@ class _DecisionChipState extends State<_DecisionChip> {
             ? Colors.red
             : Colors.orange;
 
+    // Check if date has passed (disable status changes)
+    final requestDate = DateTime.tryParse(widget.dateId);
+    final today = DateTime.now();
+    final isExpired = requestDate != null &&
+        DateTime(requestDate.year, requestDate.month, requestDate.day)
+            .isBefore(DateTime(today.year, today.month, today.day));
+
     return Container(
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
@@ -889,7 +1361,7 @@ class _DecisionChipState extends State<_DecisionChip> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: _isLoading
+        onTap: _isLoading || isExpired
             ? null
             : () async {
                 setState(() => _isLoading = true);
@@ -932,17 +1404,32 @@ class _DecisionChipState extends State<_DecisionChip> {
                     widget.dateId,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: color,
+                      color: isExpired ? Colors.grey : color,
                       fontSize: 14,
                     ),
                   ),
-                  Text(
-                    widget.currentStatus.toUpperCase(),
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        widget.currentStatus.toUpperCase(),
+                        style: TextStyle(
+                          color: isExpired ? Colors.grey : color,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (isExpired) ...[
+                        const SizedBox(width: 4),
+                        Text(
+                          '(EXPIRED)',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),

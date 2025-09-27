@@ -385,25 +385,25 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
           },
           children: [
             _buildMenuTile(
-              label: "Office",
+              label: _selectedWorkMode ?? "Office",
               icon: Icons.apartment,
-              disabled: disableAllWorkTiles ||
-                  (isSomethingSelected && _selectedWorkMode != "Office"),
+              disabled: disableAllWorkTiles &&
+                  (isSomethingSelected),
               onTap: () => _handleWorkModeSelection("Office"),
-              selected: _selectedWorkMode == "Office",
+              selected: _selectedWorkMode != "",
             ),
             _buildMenuTile(
-              label: "Home Office",
+              label: "Request Home Office",
               icon: Icons.home_work,
               // was: disableAllWorkTiles || (isSomethingSelected && _selectedWorkMode != "Home Office"),
               disabled: disableAllWorkTiles, // ✅ always tappable unless holiday
               onTap: () async {
                 // If today is approved AND no work mode saved yet → select "Home Office"
-                if (_homeOfficeApprovedToday && _selectedWorkMode == null) {
-                  await _saveWorkMode(context, "Home Office");
-                  _handleWorkModeSelection("Home Office");
-                  return;
-                }
+                // if (_homeOfficeApprovedToday && _selectedWorkMode == null) {
+                //   await _saveWorkMode(context, "Home Office");
+                //   _handleWorkModeSelection("Home Office");
+                //   return;
+                // }
 
                 // Otherwise (already selected Office/Sick OR not approved today) → open request page
                 Navigator.push(
@@ -412,7 +412,7 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
                       builder: (_) => const HomeOfficeRequestPage()),
                 );
               },
-              selected: _selectedWorkMode == "Home Office",
+              selected: false,
             ),
           ],
         ),
@@ -427,7 +427,9 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
             setState(() => _expLeave = v);
             _saveExpansionState();
           },
+
           children: [
+
             _buildMenuTile(
               label: "Sick",
               icon: Icons.sick,
