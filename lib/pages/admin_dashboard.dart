@@ -18,6 +18,8 @@ class AdminDashboard extends StatefulWidget {
 
 class _AdminDashboardState extends State<AdminDashboard> {
   static const Color bpgGreen = Color(0xFF2E4A2C);
+  String? _userName;
+  bool _isLoadingName = true;
 
   bool get isCEO => widget.userRole.toLowerCase() == 'ceo';
 
@@ -29,6 +31,47 @@ class _AdminDashboardState extends State<AdminDashboard> {
   String get description => isCEO
       ? 'You have full access to all employee data and can approve pending requests.'
       : 'Manage employee attendance, leave requests, and HR operations.';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        if (doc.exists) {
+          final data = doc.data();
+          final userName = data?['userName'] as String?;
+          setState(() {
+            _userName = userName;
+            _isLoadingName = false;
+          });
+        } else {
+          setState(() {
+            _userName = user.displayName;
+            _isLoadingName = false;
+          });
+        }
+      } else {
+        setState(() {
+          _userName = 'Admin';
+          _isLoadingName = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _userName = 'Admin';
+        _isLoadingName = false;
+      });
+    }
+  }
 
   void _openRequestsPage() {
     Navigator.push(
@@ -190,7 +233,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           Row(
                             children: [
                               Text(
-                                'Welcome, ${user?.email ?? 'Admin'}!',
+                                _isLoadingName
+                                    ? 'Welcome, Loading...!'
+                                    : 'Welcome, ${_userName ?? 'Admin'}!',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   color: Colors.grey,
@@ -385,7 +430,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               context,
               employeeId: employee.id,
               role: data['role'] ?? 'employee',
-              userName: data['userName'] ?? data['email'] ?? 'Unknown User',
+              userName: data['userName'] ?? 'Unknown User',
               designation: data['designation'] ?? 'No designation',
               email: data['email'] ?? '',
             );

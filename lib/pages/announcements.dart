@@ -17,6 +17,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
   final _firestore = FirebaseFirestore.instance;
   final _contentCtrl = TextEditingController();
 
+  static const Color bpgGreen = Color(0xFF2E4A2C);
+
   bool _isSubmitting = false;
   String? _userRole;
   bool _isLoadingRole = true;
@@ -184,6 +186,10 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, controller.text.trim()),
+            style: FilledButton.styleFrom(
+              backgroundColor: bpgGreen,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Save'),
           ),
         ],
@@ -222,7 +228,10 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -426,7 +435,10 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -484,51 +496,66 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Announcements'),
+        title: const Text('Announcements',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: bpgGreen,
+        elevation: 0,
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             tooltip: 'Refresh',
             onPressed: () => setState(() {}),
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, color: Colors.white),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _composeCard(),
-          const SizedBox(height: 4),
-          _filterChips(),
-          const Divider(height: 24),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _buildQuery().snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
-                final docs = snapshot.data?.docs ?? [];
-                if (docs.isEmpty) {
-                  return Center(
-                    child: Text(
-                      'No ${_listFilter == 'employee' ? 'employee/HR' : 'CEO'} announcements yet.',
-                    ),
-                  );
-                }
-                return ListView.separated(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  itemCount: docs.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) =>
-                      _announcementCard(docs[index]),
-                );
-              },
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF30492D), Color(0xFF4CAF50)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-        ],
+        ),
+        child: Column(
+          children: [
+            _composeCard(),
+            const SizedBox(height: 4),
+            _filterChips(),
+            const Divider(height: 24),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _buildQuery().snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  final docs = snapshot.data?.docs ?? [];
+                  if (docs.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'No ${_listFilter == 'employee' ? 'employee/HR' : 'CEO'} announcements yet.',
+                      ),
+                    );
+                  }
+                  return ListView.separated(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) =>
+                        _announcementCard(docs[index]),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -537,6 +564,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
     return Card(
       margin: const EdgeInsets.all(12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      elevation: 4,
+      shadowColor: bpgGreen.withOpacity(0.3),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -558,12 +588,24 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 const Spacer(),
                 FilledButton(
                   onPressed: _isSubmitting ? null : _submitAnnouncement,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: bpgGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
                   child: _isSubmitting
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Post'),
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Post',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
@@ -583,11 +625,27 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
             label: const Text('Employee/HR'),
             selected: _listFilter == 'employee',
             onSelected: (_) => setState(() => _listFilter = 'employee'),
+            selectedColor: bpgGreen.withOpacity(0.2),
+            checkmarkColor: bpgGreen,
+            labelStyle: TextStyle(
+              color:
+                  _listFilter == 'employee' ? bpgGreen : Colors.grey.shade700,
+              fontWeight: _listFilter == 'employee'
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
           ),
           ChoiceChip(
             label: const Text('CEO'),
             selected: _listFilter == 'ceo',
             onSelected: (_) => setState(() => _listFilter = 'ceo'),
+            selectedColor: bpgGreen.withOpacity(0.2),
+            checkmarkColor: bpgGreen,
+            labelStyle: TextStyle(
+              color: _listFilter == 'ceo' ? bpgGreen : Colors.grey.shade700,
+              fontWeight:
+                  _listFilter == 'ceo' ? FontWeight.w600 : FontWeight.normal,
+            ),
           ),
         ],
       ),
@@ -611,6 +669,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white,
+      elevation: 2,
+      shadowColor: bpgGreen.withOpacity(0.2),
       child: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
@@ -725,7 +786,17 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
               children: [
                 IconButton(
                   onPressed: () => _toggleLike(doc),
-                  icon: Icon(liked ? Icons.favorite : Icons.favorite_border),
+                  icon: Icon(
+                    liked ? Icons.favorite : Icons.favorite_border,
+                    color: liked ? Colors.red.shade600 : Colors.grey.shade600,
+                  ),
+                  style: IconButton.styleFrom(
+                    backgroundColor:
+                        liked ? Colors.red.shade50 : Colors.grey.shade100,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
                 GestureDetector(
                   onTap: () => _showLikesReactionsList(doc),
@@ -740,9 +811,15 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                _reactionMenuButton(
-                  onSelected: (emoji) => _setReaction(
-                      ref: doc.reference, userId: _user.uid, emoji: emoji),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _reactionMenuButton(
+                    onSelected: (emoji) => _setReaction(
+                        ref: doc.reference, userId: _user.uid, emoji: emoji),
+                  ),
                 ),
                 if (reactionCounts.isNotEmpty) ...[
                   const SizedBox(width: 8),
@@ -755,10 +832,15 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                         children: reactionCounts.entries
                             .map((e) => Chip(
                                   label: Text('${e.key} ${e.value}'),
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.1),
+                                  backgroundColor: bpgGreen.withOpacity(0.15),
+                                  labelStyle: TextStyle(
+                                    color: bpgGreen,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  side: BorderSide(
+                                    color: bpgGreen.withOpacity(0.3),
+                                    width: 1,
+                                  ),
                                 ))
                             .toList(),
                       ),
@@ -768,8 +850,16 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                 const Spacer(),
                 TextButton.icon(
                   onPressed: () => _openCommentsSheet(doc.reference),
-                  icon: const Icon(Icons.comment_outlined),
-                  label: const Text('Comments'),
+                  icon: const Icon(Icons.comment_outlined, color: bpgGreen),
+                  label: const Text('Comments',
+                      style: TextStyle(
+                          color: bpgGreen, fontWeight: FontWeight.w500)),
+                  style: TextButton.styleFrom(
+                    backgroundColor: bpgGreen.withOpacity(0.1),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -797,7 +887,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           onSelected(value);
         }
       },
-      child: const Icon(Icons.emoji_emotions_outlined),
+      child: const Icon(Icons.emoji_emotions_outlined, color: bpgGreen),
     );
   }
 
@@ -875,6 +965,9 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                                     (reactionCounts[e] ?? 0) + 1;
                               }
                               return Card(
+                                color: Colors.grey.shade50,
+                                elevation: 1,
+                                shadowColor: bpgGreen.withOpacity(0.1),
                                 child: Padding(
                                   padding: const EdgeInsets.all(8.0),
                                   child: Column(
@@ -917,8 +1010,24 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                                               spacing: 8,
                                               children: reactionCounts.entries
                                                   .map((e) => Chip(
-                                                      label: Text(
-                                                          '${e.key} ${e.value}')))
+                                                        label: Text(
+                                                            '${e.key} ${e.value}'),
+                                                        backgroundColor:
+                                                            bpgGreen
+                                                                .withOpacity(
+                                                                    0.15),
+                                                        labelStyle: TextStyle(
+                                                          color: bpgGreen,
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                          fontSize: 11,
+                                                        ),
+                                                        side: BorderSide(
+                                                          color: bpgGreen
+                                                              .withOpacity(0.3),
+                                                          width: 1,
+                                                        ),
+                                                      ))
                                                   .toList(),
                                             ),
                                           ],
@@ -1003,6 +1112,16 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                           ),
                           const SizedBox(width: 8),
                           FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: bpgGreen,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 2,
+                            ),
                             onPressed: isSubmittingComment
                                 ? null
                                 : () async {
@@ -1047,9 +1166,11 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                                     width: 18,
                                     height: 18,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                        strokeWidth: 2, color: Colors.white),
                                   )
-                                : const Text('Send'),
+                                : const Text('Send',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w600)),
                           ),
                         ],
                       ),
