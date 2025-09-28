@@ -211,10 +211,14 @@ service cloud.firestore {
                        (!isAdmin() && request.resource.data.type == 'employee'));
       
       // Allow update for:
-      // 1. The author of the announcement (can edit/delete their own posts)
+      // 1. The author of the announcement (can edit their own posts)
       // 2. CEO and HR (can delete any post for moderation)
+      // 3. All authenticated users (for likes and reactions)
       allow update: if request.auth != null && 
-                      (resource.data.userId == request.auth.uid || isAdmin());
+                      (resource.data.userId == request.auth.uid || 
+                       isAdmin() ||
+                       // Allow likes and reactions updates
+                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'reactions', 'pinned'])));
       
       // Allow delete for:
       // 1. The author of the announcement
@@ -233,8 +237,12 @@ service cloud.firestore {
         // Allow update for:
         // 1. The author of the comment (can edit their own comments)
         // 2. CEO and HR (can delete any comment for moderation)
+        // 3. All authenticated users (for reactions)
         allow update: if request.auth != null && 
-                        (resource.data.userId == request.auth.uid || isAdmin());
+                        (resource.data.userId == request.auth.uid || 
+                         isAdmin() ||
+                         // Allow reactions updates
+                         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])));
         
         // Allow delete for:
         // 1. The author of the comment
