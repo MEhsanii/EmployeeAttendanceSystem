@@ -132,8 +132,13 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  "Today is a holiday: ${_todayHolidayName ?? '—'}. Attendance is disabled.")),
+            content: Text(
+              "🎉 Happy ${_todayHolidayName ?? 'Holiday'}! Enjoy your day off!",
+              style: const TextStyle(fontSize: 16),
+            ),
+            backgroundColor: const Color(0xFF2E7D32),
+            duration: const Duration(seconds: 3),
+          ),
         );
       }
       return;
@@ -214,7 +219,8 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
   }
 
   Future<void> _checkTodayHoliday() async {
-    final today = DateTime.now();
+    // final today = DateTime.now();
+    final today = DateTime(DateTime.now().year, 1, 1);
     final h = await HolidayService.holidayOn(today);
     if (h != null) {
       setState(() {
@@ -375,8 +381,12 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  "Today is a public holiday: ${_todayHolidayName ?? 'Holiday'}.\nAttendance is disabled.",
-                                  style: const TextStyle(color: Colors.white),
+                                  "🎉 Happy ${_todayHolidayName ?? 'Holiday'}! 🎉\nEnjoy your day off!",
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
@@ -692,7 +702,6 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
       ),
     );
   }
-
 
   Widget _buildMenuTile({
     required String label,
