@@ -219,8 +219,8 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
   }
 
   Future<void> _checkTodayHoliday() async {
-    // final today = DateTime.now();
-    final today = DateTime(DateTime.now().year, 1, 1);
+    final today = DateTime.now();
+    // final today = DateTime(DateTime.now().year, 1, 1);
     final h = await HolidayService.holidayOn(today);
     if (h != null) {
       setState(() {
