@@ -397,7 +397,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                             ),
                           ),
                         ),
-
                       ],
                     ),
                   ],
@@ -642,10 +641,11 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
 
   void _navigateBack(BuildContext context) {
     // If user is HR or CEO, navigate back to admin dashboard
-    if (_userRole == 'hr' || _userRole == 'ceo') {
+    final role = _userRole?.toLowerCase();
+    if (role != null && (role == 'hr' || role == 'ceo')) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => AdminDashboard(userRole: _userRole!),
+          builder: (_) => AdminDashboard(userRole: role),
         ),
       );
     } else {

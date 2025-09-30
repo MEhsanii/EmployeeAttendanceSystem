@@ -8,6 +8,8 @@ import 'package:attendence_management_system/pages/add_employee_screen.dart';
 import 'package:attendence_management_system/pages/announcements.dart';
 import 'package:attendence_management_system/pages/AttendanceScreen.dart';
 import 'package:attendence_management_system/pages/sick.dart';
+import 'package:attendence_management_system/pages/vacation.dart';
+import 'package:attendence_management_system/pages/home_office.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String userRole; // 'ceo' or 'hr'
@@ -275,6 +277,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  void _navigateToVacation() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const VacationScreen(),
+      ),
+    );
+  }
+
+  void _navigateToHomeOffice() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomeOfficeRequestPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -333,239 +353,265 @@ class _AdminDashboardState extends State<AdminDashboard> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              // Header Section
-              Container(
-                padding: const EdgeInsets.all(24),
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black26,
-                        blurRadius: 8,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      // Top row with portal title and requests button
-                      Row(
-                        children: [
-                          Icon(
-                            dashboardIcon,
-                            size: 40,
-                            color: bpgGreen,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              welcomeTitle,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: bpgGreen,
-                              ),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                // Header Section
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  child: Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // Top row with portal title and requests button
+                        Row(
+                          children: [
+                            Icon(
+                              dashboardIcon,
+                              size: 40,
+                              color: bpgGreen,
                             ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: _openRequestsPage,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: bpgGreen,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 2,
-                            ),
-                            icon: const Icon(Icons.inbox_rounded, size: 20),
-                            label: const Text('Requests',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w600, fontSize: 16)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Full-width description section
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                _isLoadingName
-                                    ? 'Welcome, Loading...!'
-                                    : 'Welcome, ${_userName ?? 'Admin'}!',
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                welcomeTitle,
                                 style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: bpgGreen,
+                                ),
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: _openRequestsPage,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: bpgGreen,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 2,
+                              ),
+                              icon: const Icon(Icons.inbox_rounded, size: 20),
+                              label: const Text('Requests',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // Full-width description section
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  _isLoadingName
+                                      ? 'Welcome, Loading...!'
+                                      : 'Welcome, ${_userName ?? 'Admin'}!',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              description,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey,
+                                height: 1.4,
+                              ),
+                            ),
+                            // Work mode indicator for HR
+                            if (!isCEO && _currentWorkMode != null) ...[
+                              const SizedBox(height: 12),
+                              InkWell(
+                                onTap: _changeWorkMode,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: _currentWorkMode == 'Sick'
+                                          ? [
+                                              Colors.red.shade400,
+                                              Colors.red.shade600
+                                            ]
+                                          : (_currentWorkMode == 'Home Office'
+                                              ? [
+                                                  Colors.green.shade400,
+                                                  Colors.green.shade600
+                                                ]
+                                              : [
+                                                  Colors.blue.shade400,
+                                                  Colors.blue.shade600
+                                                ]),
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: (_currentWorkMode == 'Sick'
+                                                ? Colors.red
+                                                : (_currentWorkMode ==
+                                                        'Home Office'
+                                                    ? Colors.green
+                                                    : Colors.blue))
+                                            .withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 3),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _currentWorkMode == 'Sick'
+                                            ? Icons.sick
+                                            : (_currentWorkMode == 'Home Office'
+                                                ? Icons.home_work
+                                                : Icons.apartment),
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Today: $_currentWorkMode',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.edit,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            description,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey,
-                              height: 1.4,
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Quick Actions Section
+                Container(
+                  margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                  child: isCEO
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: _buildQuickActionCard(
+                                title: 'Announcements',
+                                subtitle: 'View & Manage Posts',
+                                icon: Icons.campaign,
+                                color: Colors.orange,
+                                onTap: _navigateToAnnouncements,
+                              ),
                             ),
-                          ),
-                          // Work mode indicator for HR
-                          if (!isCEO && _currentWorkMode != null) ...[
-                            const SizedBox(height: 12),
-                            InkWell(
-                              onTap: _changeWorkMode,
-                              borderRadius: BorderRadius.circular(8),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: _currentWorkMode == 'Sick'
-                                        ? [
-                                            Colors.red.shade400,
-                                            Colors.red.shade600
-                                          ]
-                                        : (_currentWorkMode == 'Home Office'
-                                            ? [
-                                                Colors.green.shade400,
-                                                Colors.green.shade600
-                                              ]
-                                            : [
-                                                Colors.blue.shade400,
-                                                Colors.blue.shade600
-                                              ]),
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: (_currentWorkMode == 'Sick'
-                                              ? Colors.red
-                                              : (_currentWorkMode ==
-                                                      'Home Office'
-                                                  ? Colors.green
-                                                  : Colors.blue))
-                                          .withOpacity(0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _currentWorkMode == 'Sick'
-                                          ? Icons.sick
-                                          : (_currentWorkMode == 'Home Office'
-                                              ? Icons.home_work
-                                              : Icons.apartment),
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'Today: $_currentWorkMode',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const Icon(
-                                      Icons.edit,
-                                      color: Colors.white,
-                                      size: 14,
-                                    ),
-                                  ],
-                                ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildQuickActionCard(
+                                title: 'Add Employee',
+                                subtitle: 'Register New Staff',
+                                icon: Icons.person_add,
+                                color: Colors.blue,
+                                onTap: _navigateToAddEmployee,
                               ),
                             ),
                           ],
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Quick Actions Section
-              Container(
-                margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildQuickActionCard(
-                            title: 'Announcements',
-                            subtitle: 'View & Manage Posts',
-                            icon: Icons.campaign,
-                            color: Colors.orange,
-                            onTap: _navigateToAnnouncements,
-                          ),
+                        )
+                      : Column(
+                          children: [
+                            // First row - 3 buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildCompactActionCard(
+                                    title: 'Announcements',
+                                    icon: Icons.campaign,
+                                    color: Colors.orange,
+                                    onTap: _navigateToAnnouncements,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildCompactActionCard(
+                                    title: 'Mark Attendance',
+                                    icon: Icons.access_time_filled,
+                                    color: Colors.green,
+                                    onTap: _navigateToAttendance,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildCompactActionCard(
+                                    title: 'Sick Leave',
+                                    icon: Icons.sick,
+                                    color: Colors.red,
+                                    onTap: _navigateToSickLeave,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Second row - 2 buttons
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildCompactActionCard(
+                                    title: 'Apply Vacation',
+                                    icon: Icons.flight_takeoff,
+                                    color: Colors.purple,
+                                    onTap: _navigateToVacation,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _buildCompactActionCard(
+                                    title: 'Home Office',
+                                    icon: Icons.home_work,
+                                    color: Colors.teal,
+                                    onTap: _navigateToHomeOffice,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        if (isCEO)
-                          Expanded(
-                            child: _buildQuickActionCard(
-                              title: 'Add Employee',
-                              subtitle: 'Register New Staff',
-                              icon: Icons.person_add,
-                              color: Colors.blue,
-                              onTap: _navigateToAddEmployee,
-                            ),
-                          ),
-                        if (!isCEO)
-                          Expanded(
-                            child: _buildQuickActionCard(
-                              title: 'Mark Attendance',
-                              subtitle: 'Track Your Hours',
-                              icon: Icons.access_time_filled,
-                              color: Colors.green,
-                              onTap: _navigateToAttendance,
-                            ),
-                          ),
-                      ],
-                    ),
-                    // Second row for HR sick leave
-                    if (!isCEO) ...[
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildQuickActionCard(
-                              title: 'Sick Leave',
-                              subtitle: 'View Your Sick Days',
-                              icon: Icons.sick,
-                              color: Colors.red,
-                              onTap: _navigateToSickLeave,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Expanded(child: SizedBox()), // Empty space
-                        ],
-                      ),
-                    ],
-                  ],
                 ),
-              ),
 
-              // Employees Section
-              Expanded(
-                child: Container(
+                // Employees Section
+                Container(
                   margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -591,14 +637,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Expanded(
-                        child: _buildEmployeesList(),
-                      ),
+                      _buildEmployeesList(),
                     ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -669,6 +713,64 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
+  Widget _buildCompactActionCard({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black12,
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: bpgGreen,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmployeesList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
@@ -694,12 +796,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
           );
         }
 
-        return ListView.builder(
-          itemCount: employees.length,
-          itemBuilder: (context, index) {
-            final employee = employees[index];
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: employees.map((employee) {
             final data = employee.data() as Map<String, dynamic>;
-
             return _buildEmployeeTile(
               context,
               employeeId: employee.id,
@@ -708,7 +808,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               designation: data['designation'] ?? 'No designation',
               email: data['email'] ?? '',
             );
-          },
+          }).toList(),
         );
       },
     );

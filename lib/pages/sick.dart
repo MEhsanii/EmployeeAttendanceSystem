@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:attendence_management_system/pages/admin_dashboard.dart';
 
 class SickScreen extends StatefulWidget {
   const SickScreen({super.key});
@@ -18,16 +19,38 @@ class _SickScreenState extends State<SickScreen> {
 
   late DateTime _currentMonth;
   final _refreshKey = GlobalKey<RefreshIndicatorState>();
+  String? _userRole;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _currentMonth = DateTime(now.year, now.month, 1);
+    _fetchUserRole();
+  }
+
+  Future<void> _fetchUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _userRole = doc.data()?['role'] as String?;
+        });
+      }
+    } catch (e) {
+      print('Error fetching user role: $e');
+    }
   }
 
   // ---- DATE HELPERS ----
   DateTime _startOfMonth(DateTime m) => DateTime(m.year, m.month, 1);
+
   DateTime _startOfNextMonth(DateTime m) => (m.month == 12)
       ? DateTime(m.year + 1, 1, 1)
       : DateTime(m.year, m.month + 1, 1);
@@ -107,6 +130,79 @@ class _SickScreenState extends State<SickScreen> {
     return (end == -1) ? text.substring(start) : text.substring(start, end);
   }
 
+  void _navigateBack(BuildContext context) {
+    final role = _userRole?.toLowerCase();
+    if (role != null && (role == 'hr' || role == 'ceo')) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminDashboard(userRole: role),
+        ),
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _markTodayAsSick(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('attendance')
+          .doc(dateKey);
+
+      // Check if already marked for today
+      final docSnapshot = await docRef.get();
+      if (docSnapshot.exists) {
+        final currentMode = docSnapshot.data()?['workMode'];
+        if (currentMode == 'Sick') {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Today is already marked as Sick'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          return;
+        }
+      }
+
+      await docRef.set({
+        'workMode': 'Sick',
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Today marked as Sick'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        // Refresh the list
+        setState(() {});
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   // ---- UI ----
   @override
   Widget build(BuildContext context) {
@@ -115,17 +211,71 @@ class _SickScreenState extends State<SickScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sick Leave"),
-        backgroundColor: Colors.green.shade700,
-        foregroundColor: Colors.white,
-      ),
+          title: const Text("Sick Leave"),
+          backgroundColor: Colors.green.shade700,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => _navigateBack(context),
+          ),
+          actions: [
+            // Button to mark today as sick
+            InkWell(
+              onTap: user != null ? () => _markTodayAsSick(context) : null,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                margin: EdgeInsets.only(right: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.red.shade400, Colors.red.shade600],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.sick,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Mark as Sick',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    // IconButton(
+                    //   icon: const Icon(Icons.add_circle_outline),
+                    //   tooltip: 'Mark Today as Sick',
+                    //   onPressed:
+                    //       user != null ? () => _markTodayAsSick(context) : null,
+                    // ),
+                  ],
+                ),
+              ),
+            ),
+          ]),
       body: user == null
           ? _SignedOutState(onSignInTap: () {
               Navigator.of(context).pop();
             })
           : Column(
               children: [
-
                 const SizedBox(height: 16),
 
                 // Month selector row
@@ -293,7 +443,6 @@ class _EmptyState extends StatelessWidget {
 
 // ======= SMALL, REUSABLE WIDGETS =======
 
-
 class _SummaryCard extends StatelessWidget {
   final int count;
   final String monthTitle;
@@ -344,6 +493,7 @@ class _SummaryCard extends StatelessWidget {
 
 class _SickTile extends StatelessWidget {
   final DateTime date;
+
   const _SickTile({required this.date});
 
   @override
@@ -374,6 +524,7 @@ class _NavChip extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool enabled;
+
   const _NavChip(
       {required this.icon, required this.onTap, this.enabled = true});
 
@@ -401,6 +552,7 @@ class _NavChip extends StatelessWidget {
 
 class _SignedOutState extends StatelessWidget {
   final VoidCallback onSignInTap;
+
   const _SignedOutState({required this.onSignInTap});
 
   @override
@@ -427,6 +579,7 @@ class _ErrorState extends StatelessWidget {
   final String message;
   final String errorDetails;
   final String? indexLink;
+
   const _ErrorState({
     required this.message,
     required this.errorDetails,
