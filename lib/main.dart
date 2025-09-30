@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Attendance Management System',
+      title: 'BPG Group',
       theme: themeData,
       home: const SplashScreen(),
     );

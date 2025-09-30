@@ -456,8 +456,7 @@ class _WorkModeSelectionPageState extends State<WorkModeSelectionPage> {
             _buildMenuTile(
               label: "Request Home Office",
               icon: Icons.home_work,
-              // was: disableAllWorkTiles || (isSomethingSelected && _selectedWorkMode != "Home Office"),
-              disabled: disableAllWorkTiles, // ✅ always tappable unless holiday
+              disabled: false,
               onTap: () async {
                 // If today is approved AND no work mode saved yet → select "Home Office"
                 // if (_homeOfficeApprovedToday && _selectedWorkMode == null) {

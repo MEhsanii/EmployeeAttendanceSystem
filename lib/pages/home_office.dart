@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '/services/holiday_service.dart';
 import 'package:intl/intl.dart';
 
 class HomeOfficeRequestPage extends StatefulWidget {
@@ -26,6 +27,9 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
       {}; // dateId -> status (pending/approved/rejected)
   bool _loadingExistingRequests = true;
 
+  // Track holidays
+  final Set<DateTime> _holidays = {};
+
   @override
   void dispose() {
     _noteCtrl.dispose();
@@ -37,6 +41,7 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
     super.initState();
     _noteCtrl.addListener(() => setState(() {})); // updates the counter text
     _loadExistingRequests();
+    _loadHolidays();
   }
 
   Future<void> _loadExistingRequests() async {
@@ -78,6 +83,37 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
   String? _getDateStatus(DateTime date) {
     final dateId = _fmt.format(date);
     return _existingRequests[dateId];
+  }
+
+  Future<void> _loadHolidays() async {
+    try {
+      final currentYear = DateTime.now().year;
+      final nextYear = currentYear + 1;
+
+      final currentYearHolidays =
+          await HolidayService.holidaysForYear(currentYear);
+      final nextYearHolidays = await HolidayService.holidaysForYear(nextYear);
+
+      _holidays.clear();
+      for (final holiday in [...currentYearHolidays, ...nextYearHolidays]) {
+        _holidays.add(
+            DateTime(holiday.date.year, holiday.date.month, holiday.date.day));
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('Error loading holidays: $e');
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  bool _isHoliday(DateTime date) {
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    return _holidays.contains(dateOnly);
   }
 
   // ---- Helpers --------------------------------------------------------------
@@ -333,12 +369,13 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
                                 defaultBuilder: (context, day, _) {
                                   final status = _getDateStatus(day);
                                   final allowed = _isSelectable(day);
+                                  final isHoliday = _isHoliday(day);
 
                                   Color? backgroundColor;
                                   Color? textColor;
 
                                   if (status != null) {
-                                    // Date has an existing request
+                                    // Date has an existing request - show color regardless of past/future
                                     switch (status) {
                                       case 'approved':
                                         backgroundColor = Colors.green;
@@ -355,7 +392,7 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
                                         break;
                                     }
                                   } else if (!allowed) {
-                                    // Past dates or invalid dates
+                                    // Past dates or invalid dates - but still show normal text
                                     textColor = cs.onSurface.withOpacity(0.35);
                                   } else {
                                     // Available dates
@@ -370,23 +407,47 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
                                             shape: BoxShape.circle,
                                           )
                                         : null,
-                                    child: Center(
-                                      child: Text(
-                                        '${day.day}',
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                          color: textColor,
-                                          fontWeight: backgroundColor != null
-                                              ? FontWeight.w600
-                                              : FontWeight.normal,
+                                    child: Stack(
+                                      children: [
+                                        Center(
+                                          child: Text(
+                                            '${day.day}',
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                              color: textColor,
+                                              fontWeight:
+                                                  backgroundColor != null
+                                                      ? FontWeight.w600
+                                                      : FontWeight.normal,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                        // Holiday indicator dot
+                                        if (isHoliday)
+                                          Positioned(
+                                            bottom: 2,
+                                            left: 0,
+                                            right: 0,
+                                            child: Center(
+                                              child: Container(
+                                                width: 6,
+                                                height: 6,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.amber.shade600,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                   );
                                 },
                                 selectedBuilder: (context, day, _) {
                                   // Override selected builder to maintain status colors for selected days
                                   final status = _getDateStatus(day);
+                                  final isHoliday = _isHoliday(day);
+
                                   if (status != null) {
                                     Color backgroundColor;
                                     switch (status) {
@@ -411,15 +472,37 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
                                         border: Border.all(
                                             color: Colors.white, width: 2),
                                       ),
-                                      child: Center(
-                                        child: Text(
-                                          '${day.day}',
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
+                                      child: Stack(
+                                        children: [
+                                          Center(
+                                            child: Text(
+                                              '${day.day}',
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          // Holiday indicator dot
+                                          if (isHoliday)
+                                            Positioned(
+                                              bottom: 2,
+                                              left: 0,
+                                              right: 0,
+                                              child: Center(
+                                                child: Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        Colors.amber.shade600,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     );
                                   } else {
@@ -430,15 +513,37 @@ class _HomeOfficeRequestPageState extends State<HomeOfficeRequestPage> {
                                         color: cs.primary.withOpacity(0.35),
                                         shape: BoxShape.circle,
                                       ),
-                                      child: Center(
-                                        child: Text(
-                                          '${day.day}',
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                            color: cs.onSurface,
-                                            fontWeight: FontWeight.w600,
+                                      child: Stack(
+                                        children: [
+                                          Center(
+                                            child: Text(
+                                              '${day.day}',
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                color: cs.onSurface,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          // Holiday indicator dot
+                                          if (isHoliday)
+                                            Positioned(
+                                              bottom: 2,
+                                              left: 0,
+                                              right: 0,
+                                              child: Center(
+                                                child: Container(
+                                                  width: 6,
+                                                  height: 6,
+                                                  decoration: BoxDecoration(
+                                                    color:
+                                                        Colors.amber.shade600,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     );
                                   }

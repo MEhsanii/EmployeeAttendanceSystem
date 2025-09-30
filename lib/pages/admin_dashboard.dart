@@ -744,7 +744,8 @@ class _HomeOfficeRequestsList extends StatelessWidget {
           final data = doc.data() as Map<String, dynamic>;
           final Map<String, dynamic> statusByDate =
               Map<String, dynamic>.from(data['statusByDate'] ?? {});
-          return statusByDate.values.any((v) => v == filter);
+          return statusByDate.values
+              .any((v) => v.toString().toLowerCase() == filter.toLowerCase());
         }).toList();
 
         if (filtered.isEmpty) {
@@ -990,8 +991,8 @@ class _VacationRequestsList extends StatelessWidget {
         final docs = snap.data?.docs ?? [];
         final filtered = docs.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          final status = data['status'] ?? 'pending';
-          return status == filter;
+          final status = (data['status'] ?? 'pending').toString().toLowerCase();
+          return status == filter.toLowerCase();
         }).toList();
 
         if (filtered.isEmpty) {

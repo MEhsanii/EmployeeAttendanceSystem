@@ -114,10 +114,13 @@ service cloud.firestore {
     // Vacation requests collection (global)
     match /vacationRequests/{requestId} {
       // Allow read for:
-      // 1. The request owner
+      // 1. The request owner (can see their own requests)
       // 2. CEO and HR (can view all requests)
+      // 3. All authenticated users (can view approved requests for team coordination)
       allow read: if request.auth != null && 
-                     (request.auth.uid == resource.data.userId || isAdmin());
+                     (request.auth.uid == resource.data.userId || 
+                      isAdmin() ||
+                      resource.data.status in ['Approved', 'approved']);
       
       // Allow write for:
       // 1. The request owner (create/update must keep same owner)

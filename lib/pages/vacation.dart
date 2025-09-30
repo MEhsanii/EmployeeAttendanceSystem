@@ -54,6 +54,7 @@ class _VacationScreenState extends State<VacationScreen> {
   DateTime? _endDate;
   bool _isSubmitting = false;
   bool _isCEO = false;
+  bool _showOtherEmployeeVacations = false;
 
   @override
   void initState() {
@@ -172,6 +173,7 @@ class _VacationScreenState extends State<VacationScreen> {
           initialStart: _startDate,
           initialEnd: _endDate,
           holidays: _holidaySet, // <-- add
+          showOtherEmployeeVacations: true, // as it will always be shown in calendar
         ),
       ),
     );
@@ -366,7 +368,7 @@ class _VacationScreenState extends State<VacationScreen> {
         'endDate': Timestamp.fromDate(_dateOnly(_endDate!)),
         'durationDays': _endDate!.difference(_startDate!).inDays + 1,
         'businessDays': workingDays,
-        'status': 'pending', // Changed to match home office pattern
+        'status': 'Pending', // Use capitalized status for consistency
         'submittedAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(), // Add for consistency
         // Add review metadata structure for admin actions
@@ -420,6 +422,7 @@ class _VacationScreenState extends State<VacationScreen> {
           initialStart: _startDate,
           initialEnd: _endDate,
           holidays: _holidaySet, // <-- add this
+          showOtherEmployeeVacations: _showOtherEmployeeVacations,
         ),
       ),
     );
@@ -525,7 +528,7 @@ class _VacationScreenState extends State<VacationScreen> {
     if (ok == true) {
       try {
         await doc.reference.update({
-          'status': 'Approved',
+          'status': 'approved',
           'approvedAt': FieldValue.serverTimestamp(),
           'approvedBy': FirebaseAuth.instance.currentUser?.uid,
         });
@@ -678,162 +681,38 @@ class _VacationScreenState extends State<VacationScreen> {
                   "Requests",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
+                const Spacer(),
+                // Toggle for showing other employees' vacations
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "Show team vacations",
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                    const SizedBox(width: 8),
+                    Switch(
+                      value: _showOtherEmployeeVacations,
+                      onChanged: (value) {
+                        setState(() {
+                          _showOtherEmployeeVacations = value;
+                        });
+                      },
+                      activeColor: Colors.green.shade700,
+                    ),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 8),
             const SizedBox(height: 10),
             SizedBox(
-              height: 300, // Constrained height for the list
-              child: Builder(builder: (context) {
-                if (user == null) {
-                  return const Center(child: Text("Please log in."));
-                }
-                final base =
-                    FirebaseFirestore.instance.collection('vacationRequests');
-                // For non-CEO users, remove ordering to avoid index requirement
-                // CEO queries work because they don't have the userId filter
-                final Query q = _isCEO
-                    ? base.orderBy('createdAt', descending: true).limit(100)
-                    : base.where('userId', isEqualTo: user.uid).limit(30);
-
-                return StreamBuilder<QuerySnapshot>(
-                  stream: q.snapshots(),
-                  builder: (context, snap) {
-                    if (snap.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (snap.hasError) {
-                      // Handle permission errors gracefully
-                      final errorMsg = snap.error.toString();
-                      if (errorMsg.contains('permission') ||
-                          errorMsg.contains(
-                              'Missing or insufficient permissions')) {
-                        return Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.lock_outline,
-                                  size: 48, color: Colors.grey.shade400),
-                              const SizedBox(height: 12),
-                              const Text(
-                                "Unable to load your vacation requests",
-                                style: TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.w500),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                "This might be due to missing user data.\nTry submitting a new request.",
-                                style: TextStyle(
-                                    fontSize: 14, color: Colors.grey.shade600),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                      return Center(child: Text("Error: ${snap.error}"));
-                    }
-                    final docs = snap.data?.docs ?? [];
-                    if (docs.isEmpty) {
-                      return const Center(child: Text("No requests yet."));
-                    }
-
-                    // Sort docs manually by createdAt for non-CEO users (since we removed orderBy)
-                    if (!_isCEO) {
-                      docs.sort((a, b) {
-                        final aData = a.data() as Map<String, dynamic>;
-                        final bData = b.data() as Map<String, dynamic>;
-                        final aTime = aData['createdAt'] as Timestamp?;
-                        final bTime = bData['createdAt'] as Timestamp?;
-                        if (aTime == null && bTime == null) return 0;
-                        if (aTime == null) return 1;
-                        if (bTime == null) return -1;
-                        return bTime.compareTo(aTime); // descending order
-                      });
-                    }
-
-                    return ListView.builder(
-                      itemCount: docs.length,
-                      itemBuilder: (context, i) {
-                        final doc = docs[i];
-                        final d = doc.data() as Map<String, dynamic>;
-
-                        final status =
-                            _statusLabel((d['status'] ?? 'In Review'));
-                        final start = _toDate(d['startDate']);
-                        final end = _toDate(d['endDate']);
-                        final note = (d['note'] ?? '').toString();
-                        final requesterName = (d['userDisplayName'] ??
-                                d['userEmail'] ??
-                                'Unknown')
-                            .toString();
-
-                        String fmt(DateTime? dt) => dt == null
-                            ? '-'
-                            : DateFormat('dd MMM yyyy').format(dt);
-
-                        final notDone = _isNotDone(end);
-                        final bool isMine = (d['userId'] ==
-                            user.uid); // <-- new ownership check
-                        final bool canEdit = isMine &&
-                            !_isCEO &&
-                            _isInReview(status) &&
-                            notDone; // <-- only mine
-
-                        return Card(
-                          child: ListTile(
-                            leading: const Icon(Icons.beach_access),
-                            title: Text("${fmt(start)} → ${fmt(end)}"),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text("Status: $status"),
-                                if (_isCEO) Text("By: $requesterName"),
-                                if (note.isNotEmpty) Text("Note: $note"),
-                              ],
-                            ),
-                            trailing: _isCEO
-                                ? Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.check_circle),
-                                        onPressed: _isInReview(status)
-                                            ? () => _confirmApprove(doc)
-                                            : null,
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.cancel),
-                                        onPressed: _isInReview(status)
-                                            ? () => _confirmReject(doc)
-                                            : null,
-                                      ),
-                                    ],
-                                  )
-                                : (canEdit
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit),
-                                            onPressed: () =>
-                                                _openEditDialog(doc),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.delete),
-                                            onPressed: () =>
-                                                _confirmDelete(doc, end: end),
-                                          ),
-                                        ],
-                                      )
-                                    : null),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                );
-              }),
+              height: 300,
+              child: user == null
+                  ? const Center(child: Text("Please log in."))
+                  : (_showOtherEmployeeVacations && !_isCEO)
+                      ? _CombinedRequestsList(userId: user.uid)
+                      : _MyRequestsList(userId: user.uid, isCEO: _isCEO),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
@@ -869,12 +748,14 @@ class TeamRangePickerSheet extends StatefulWidget {
   final DateTime? initialStart;
   final DateTime? initialEnd;
   final Set<DateTime> holidays; // <-- add
+  final bool showOtherEmployeeVacations;
 
   const TeamRangePickerSheet({
     super.key,
     this.initialStart,
     this.initialEnd,
     required this.holidays, // <-- add
+    required this.showOtherEmployeeVacations,
   });
 
   @override
@@ -887,6 +768,7 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
   DateTime? _rangeEnd;
 
   final Map<DateTime, List<_PersonVacation>> _dayMap = {};
+  final Set<DateTime> _acceptedVacationDays = {};
 
   @override
   void initState() {
@@ -905,23 +787,44 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
   DateTime _endOfMonth(DateTime d) => DateTime(d.year, d.month + 1, 0);
 
   Stream<QuerySnapshot> _monthStream(DateTime monthCenter) {
-    final start = Timestamp.fromDate(_startOfMonth(monthCenter));
-    final end = Timestamp.fromDate(_endOfMonth(monthCenter));
+    final yearStart = DateTime(monthCenter.year, 1, 1);
+    final yearEnd = DateTime(monthCenter.year, 12, 31);
+
     final col = FirebaseFirestore.instance.collection('vacationRequests');
+
+    if (!widget.showOtherEmployeeVacations) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        return col
+            .where('userId', isEqualTo: currentUser.uid)
+            .where('startDate', isLessThanOrEqualTo: Timestamp.fromDate(yearEnd))
+            .where('endDate', isGreaterThanOrEqualTo: Timestamp.fromDate(yearStart))
+            .snapshots();
+      }
+    }
+
     return col
-        .where('startDate', isLessThanOrEqualTo: end)
-        .where('endDate', isGreaterThanOrEqualTo: start)
+        .where('startDate', isLessThanOrEqualTo: Timestamp.fromDate(yearEnd))
+        .where('endDate', isGreaterThanOrEqualTo: Timestamp.fromDate(yearStart))
         .snapshots();
   }
 
+
   void _rebuildDayMap(QuerySnapshot snap) {
     _dayMap.clear();
+    _acceptedVacationDays.clear();
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+
     for (final doc in snap.docs) {
       final d = doc.data() as Map<String, dynamic>;
       final status = (d['status'] ?? '').toString();
-      if (!(status == 'Approved' ||
-          status == 'In Review' ||
-          status == 'Pending')) {
+      final userId = d['userId'] as String?;
+      final isCurrentUser = userId == currentUser?.uid;
+
+      if (!(status.toLowerCase() == 'Approved'.toLowerCase() ||
+          status.toLowerCase() == 'In Review'.toLowerCase() ||
+          status.toLowerCase() == 'Pending'.toLowerCase())) {
         continue;
       }
 
@@ -942,6 +845,17 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
           !cur.isAfter(e);
           cur = cur.add(const Duration(days: 1))) {
         final key = _d(cur);
+
+        // When toggle is ON, track accepted vacations from other employees for red dots
+        if (widget.showOtherEmployeeVacations &&
+            status.toLowerCase() == 'Approved'.toLowerCase() &&
+            !isCurrentUser) {
+          _acceptedVacationDays.add(key);
+        }
+
+        // Add all vacation data to dayMap for orange overlaps
+        // When toggle is OFF, only current user data will be in the snapshot
+        // When toggle is ON, all employee data will be in the snapshot
         _dayMap.putIfAbsent(key, () => []);
         _dayMap[key]!
             .add(_PersonVacation(name: name, status: status, start: s, end: e));
@@ -1011,6 +925,8 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
                 child: Column(
                   children: [
                     StreamBuilder<QuerySnapshot>(
+                      key: ValueKey(
+                          'vacation_stream_${widget.showOtherEmployeeVacations}_${_focusedDay.month}_${_focusedDay.year}'),
                       stream: _monthStream(_focusedDay),
                       builder: (context, snap) {
                         if (snap.hasData) _rebuildDayMap(snap.data!);
@@ -1044,6 +960,7 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
 
                               // Up to 3 bubbles; each with its own status color
                               final show = people.take(3).toList();
+                              print(show);
                               return Padding(
                                 padding: const EdgeInsets.only(top: 36),
                                 child: Wrap(
@@ -1058,18 +975,10 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
                             defaultBuilder: (ctx, day, _) {
                               final isHoliday = _isHoliday(day);
                               final hasPeople = _dayMap.containsKey(_d(day));
+                              final hasAcceptedVacation =
+                                  _acceptedVacationDays.contains(_d(day));
 
-                              Widget dayLabel = Text(
-                                '${day.day}',
-                                style: TextStyle(
-                                  color: isHoliday ? Colors.red.shade700 : null,
-                                  fontWeight: isHoliday
-                                      ? FontWeight.w700
-                                      : FontWeight.normal,
-                                ),
-                              );
-
-                              Widget cell = Container(
+                              return Container(
                                 margin: const EdgeInsets.all(6),
                                 alignment: Alignment.center,
                                 decoration: hasPeople
@@ -1085,35 +994,67 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
                                         ),
                                       )
                                     : null,
-                                child: dayLabel,
-                              );
-
-                              if (isHoliday) {
-                                return Stack(
+                                child: Stack(
                                   children: [
-                                    cell,
-                                    Positioned(
-                                      right: 4,
-                                      top: 4,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 4, vertical: 1),
-                                        decoration: BoxDecoration(
-                                          color: Colors.red.shade50,
-                                          borderRadius:
-                                              BorderRadius.circular(4),
-                                          border: Border.all(
-                                              color: Colors.red.shade300),
+                                    Center(
+                                      child: Text(
+                                        '${day.day}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.normal,
                                         ),
-                                        child: const Text('H',
-                                            style: TextStyle(fontSize: 9)),
                                       ),
                                     ),
+                                    // Holiday indicator dot (amber like home office)
+                                    if (isHoliday)
+                                      Positioned(
+                                        bottom: 2,
+                                        left: 0,
+                                        right: 0,
+                                        child: Center(
+                                          child: Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: BoxDecoration(
+                                              color: Colors.amber.shade600,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    // Accepted employee vacation indicator (red dot)
+                                    if (hasAcceptedVacation && !isHoliday)
+                                      Positioned(
+                                        bottom: 2,
+                                        left: 0,
+                                        right: 0,
+                                        child: Center(
+                                          child: Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: BoxDecoration(
+                                              color: Colors.red.shade600,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    // If both holiday and accepted vacation, show both dots
+                                    if (hasAcceptedVacation && isHoliday)
+                                      Positioned(
+                                        bottom: 2,
+                                        left: 8,
+                                        child: Container(
+                                          width: 6,
+                                          height: 6,
+                                          decoration: BoxDecoration(
+                                            color: Colors.red.shade600,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
                                   ],
-                                );
-                              }
-
-                              return cell;
+                                ),
+                              );
                             },
                           ),
                         );
@@ -1121,13 +1062,38 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
                     ),
                     // --- Legend (NEW) ---
                     const SizedBox(height: 8),
-                    Row(
-                      children: const [
-                        _LegendItem(color: Colors.red, label: 'Public holiday'),
-                        SizedBox(width: 12),
-                        _LegendItem(
-                            color: Colors.orange, label: 'Team overlaps'),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Calendar Legend:',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600, fontSize: 13),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 8,
+                            children: [
+                              const _LegendItem(
+                                  color: Colors.amber, label: 'Public holiday'),
+                              const _LegendItem(
+                                  color: Colors.orange, label: 'Team overlaps'),
+                              if (widget.showOtherEmployeeVacations)
+                                const _LegendItem(
+                                    color: Colors.red,
+                                    label: 'Team approved vacations'),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 10),
                     _ConflictsPanel(vacations: _rangesForSelected()),
@@ -1282,5 +1248,375 @@ class _ConflictsPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// Widget to show only user's own requests
+class _MyRequestsList extends StatelessWidget {
+  final String userId;
+  final bool isCEO;
+  const _MyRequestsList({required this.userId, required this.isCEO});
+
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  DateTime? _toDate(dynamic v) {
+    if (v is Timestamp) return _dateOnly(v.toDate());
+    if (v is String) return _dateOnly(DateTime.tryParse(v) ?? DateTime(1900));
+    return null;
+  }
+
+  bool _isInReview(String status) {
+    final s = status.toString();
+    return s == 'In Review' || s == 'Pending' || s.toLowerCase() == 'pending';
+  }
+
+  String _statusLabel(String status) {
+    if (status == 'Pending') return 'In Review';
+    return status;
+  }
+
+  bool _isNotDone(DateTime? end) {
+    if (end == null) return false;
+    final today = _dateOnly(DateTime.now());
+    return !_dateOnly(end).isBefore(today);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = FirebaseFirestore.instance.collection('vacationRequests');
+    final query = isCEO
+        ? base.orderBy('createdAt', descending: true).limit(100)
+        : base.where('userId', isEqualTo: userId).limit(30);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: query.snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snap.hasError) {
+          return Center(child: Text("Error: ${snap.error}"));
+        }
+
+        var docs = snap.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return const Center(child: Text("No requests yet."));
+        }
+
+        // Sort for non-CEO
+        if (!isCEO) {
+          docs.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aTime = aData['createdAt'] as Timestamp?;
+            final bTime = bData['createdAt'] as Timestamp?;
+            if (aTime == null && bTime == null) return 0;
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
+          });
+        }
+
+        return ListView.builder(
+          itemCount: docs.length,
+          itemBuilder: (context, i) =>
+              _buildRequestCard(context, docs[i], userId, isCEO),
+        );
+      },
+    );
+  }
+}
+
+// Widget to show user's own requests + team approved requests
+class _CombinedRequestsList extends StatelessWidget {
+  final String userId;
+  const _CombinedRequestsList({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    final base = FirebaseFirestore.instance.collection('vacationRequests');
+
+    // Use nested StreamBuilders to get both query results
+    return StreamBuilder<QuerySnapshot>(
+      stream: base.where('userId', isEqualTo: userId).snapshots(),
+      builder: (context, mySnap) {
+        if (mySnap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: base.where('status', isEqualTo: 'approved').snapshots(),
+          builder: (context, teamSnap) {
+            if (teamSnap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (mySnap.hasError || teamSnap.hasError) {
+              return Center(child: Text("Error loading requests"));
+            }
+
+            final allDocs = <DocumentSnapshot>[];
+            final seen = <String>{};
+
+            // Add user's own docs
+            for (final doc in (mySnap.data?.docs ?? [])) {
+              if (!seen.contains(doc.id)) {
+                seen.add(doc.id);
+                allDocs.add(doc);
+              }
+            }
+
+            // Add team's approved docs (avoiding duplicates)
+            for (final doc in (teamSnap.data?.docs ?? [])) {
+              if (!seen.contains(doc.id)) {
+                seen.add(doc.id);
+                allDocs.add(doc);
+              }
+            }
+
+            if (allDocs.isEmpty) {
+              return const Center(child: Text("No requests yet."));
+            }
+
+            // Sort by createdAt
+            allDocs.sort((a, b) {
+              final aData = a.data() as Map<String, dynamic>;
+              final bData = b.data() as Map<String, dynamic>;
+              final aTime = aData['createdAt'] as Timestamp?;
+              final bTime = bData['createdAt'] as Timestamp?;
+              if (aTime == null && bTime == null) return 0;
+              if (aTime == null) return 1;
+              if (bTime == null) return -1;
+              return bTime.compareTo(aTime);
+            });
+
+            return ListView.builder(
+              itemCount: allDocs.length,
+              itemBuilder: (context, i) =>
+                  _buildRequestCard(context, allDocs[i], userId, false),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// Shared card builder
+Widget _buildRequestCard(BuildContext context, DocumentSnapshot doc,
+    String currentUserId, bool isCEO) {
+  final d = doc.data() as Map<String, dynamic>;
+
+  DateTime _dateOnly(DateTime dt) => DateTime(dt.year, dt.month, dt.day);
+
+  DateTime? _toDate(dynamic v) {
+    if (v is Timestamp) return _dateOnly(v.toDate());
+    if (v is String) return _dateOnly(DateTime.tryParse(v) ?? DateTime(1900));
+    return null;
+  }
+
+  bool _isInReview(String status) {
+    final s = status.toString();
+    return s == 'In Review' || s == 'Pending' || s.toLowerCase() == 'pending';
+  }
+
+  String _statusLabel(String status) {
+    if (status == 'Pending') return 'In Review';
+    return status;
+  }
+
+  bool _isNotDone(DateTime? end) {
+    if (end == null) return false;
+    final today = _dateOnly(DateTime.now());
+    return !_dateOnly(end).isBefore(today);
+  }
+
+  final status = _statusLabel((d['status'] ?? 'In Review'));
+  final start = _toDate(d['startDate']);
+  final end = _toDate(d['endDate']);
+  final note = (d['note'] ?? '').toString();
+  final requesterName =
+      (d['userDisplayName'] ?? d['userEmail'] ?? 'Unknown').toString();
+
+  String fmt(DateTime? dt) =>
+      dt == null ? '-' : DateFormat('dd MMM yyyy').format(dt);
+
+  final notDone = _isNotDone(end);
+  final bool isMine = (d['userId'] == currentUserId);
+  final bool canEdit = isMine && !isCEO && _isInReview(status) && notDone;
+
+  // Determine card color
+  final rawStatus = (d['status'] ?? 'In Review').toString();
+  Color cardColor;
+  if (rawStatus == 'approved') {
+    cardColor = Colors.green.shade50;
+  } else if (rawStatus == 'Rejected') {
+    cardColor = Colors.red.shade50;
+  } else {
+    cardColor = Colors.orange.shade50;
+  }
+
+  return Card(
+    color: cardColor,
+    child: ListTile(
+      leading: const Icon(Icons.beach_access),
+      title: Text("${fmt(start)} → ${fmt(end)}"),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Status: $status"),
+          if (!isMine) Text("By: $requesterName"),
+          if (note.isNotEmpty) Text("Note: $note"),
+        ],
+      ),
+      trailing: isCEO
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.check_circle),
+                  onPressed: _isInReview(status)
+                      ? () => _confirmApprove(context, doc)
+                      : null,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.cancel),
+                  onPressed: _isInReview(status)
+                      ? () => _confirmReject(context, doc)
+                      : null,
+                ),
+              ],
+            )
+          : (canEdit
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _openEditDialog(context, doc),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete),
+                      onPressed: () => _confirmDelete(context, doc, end: end),
+                    ),
+                  ],
+                )
+              : null),
+    ),
+  );
+}
+
+// Helper methods for card actions (need context)
+Future<void> _confirmApprove(BuildContext context, DocumentSnapshot doc) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Approve request?'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel')),
+        ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Approve')),
+      ],
+    ),
+  );
+  if (ok == true) {
+    try {
+      await doc.reference.update({
+        'status': 'approved',
+        'approvedAt': FieldValue.serverTimestamp(),
+        'approvedBy': FirebaseAuth.instance.currentUser?.uid,
+      });
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Approve failed: $e')),
+        );
+      }
+    }
+  }
+}
+
+Future<void> _confirmReject(BuildContext context, DocumentSnapshot doc) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Reject request?'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel')),
+        ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject')),
+      ],
+    ),
+  );
+  if (ok == true) {
+    try {
+      await doc.reference.update({
+        'status': 'Rejected',
+        'rejectedAt': FieldValue.serverTimestamp(),
+        'rejectedBy': FirebaseAuth.instance.currentUser?.uid,
+      });
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Reject failed: $e')),
+        );
+      }
+    }
+  }
+}
+
+Future<void> _openEditDialog(BuildContext context, DocumentSnapshot doc) async {
+  // This would need to be implemented - for now just show message
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Edit functionality needs implementation')),
+  );
+}
+
+Future<void> _confirmDelete(BuildContext context, DocumentSnapshot doc,
+    {required DateTime? end}) async {
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+  bool _isNotDone(DateTime? end) {
+    if (end == null) return false;
+    final today = _dateOnly(DateTime.now());
+    return !_dateOnly(end).isBefore(today);
+  }
+
+  if (!_isNotDone(end)) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Past requests cannot be deleted')),
+    );
+    return;
+  }
+
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Delete Request?'),
+      content: const Text('This action cannot be undone.'),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel')),
+        ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete')),
+      ],
+    ),
+  );
+  if (ok == true) {
+    try {
+      await doc.reference.delete();
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Delete failed: $e')),
+        );
+      }
+    }
   }
 }
