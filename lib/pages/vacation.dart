@@ -707,7 +707,7 @@ class _VacationScreenState extends State<VacationScreen> {
             const SizedBox(height: 8),
             const SizedBox(height: 10),
             SizedBox(
-              height: 300,
+              height: 250,
               child: user == null
                   ? const Center(child: Text("Please log in."))
                   : (_showOtherEmployeeVacations && !_isCEO)
@@ -717,7 +717,7 @@ class _VacationScreenState extends State<VacationScreen> {
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: (_isSubmitting || _isCEO) ? null : _submitRequest,
-              icon: const Icon(Icons.send),
+              icon: const Icon(Icons.send, color: Color(0xFF4CAF50),),
               label: Text(_isCEO
                   ? "Submit Disabled in CEO View"
                   : (_isSubmitting ? "Submitting..." : "Submit Request")),

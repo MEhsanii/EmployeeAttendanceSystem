@@ -405,7 +405,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                 ),
                                 elevation: 2,
                               ),
-                              icon: const Icon(Icons.inbox_rounded, size: 20),
+                              icon: const Icon(Icons.inbox_rounded, size: 20, color: Color(0xFF4CAF50),),
                               label: const Text('Requests',
                                   style: TextStyle(
                                       fontWeight: FontWeight.w600,
@@ -969,6 +969,7 @@ class _AdminRequestsPageState extends State<_AdminRequestsPage>
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+
         backgroundColor: const Color(0xFFF8F9FA),
         appBar: AppBar(
           title: const Text('Employee Requests',
@@ -976,6 +977,7 @@ class _AdminRequestsPageState extends State<_AdminRequestsPage>
                   TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           backgroundColor: bpgGreen,
           elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
           bottom: TabBar(
             indicatorColor: Colors.white,
             indicatorWeight: 3,
