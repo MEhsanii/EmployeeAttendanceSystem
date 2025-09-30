@@ -1,5 +1,6 @@
 import 'package:attendence_management_system/pages/editing.dart';
 import 'package:attendence_management_system/pages/work_mode_selection_page.dart';
+import 'package:attendence_management_system/pages/admin_dashboard.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,7 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
 
   String? _currentWorkMode;
   bool _homeOfficeApprovedToday = false;
+  String? _userRole; // Track user role for navigation
 
   @override
   void initState() {
@@ -45,6 +47,26 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     WidgetsBinding.instance.addObserver(this);
     fetchTimestamps();
     _checkHomeOfficeApproval();
+    _fetchUserRole();
+  }
+
+  Future<void> _fetchUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _userRole = doc.data()?['role'] as String?;
+        });
+      }
+    } catch (e) {
+      print('Error fetching user role: $e');
+    }
   }
 
   Future<void> _checkHomeOfficeApproval() async {
@@ -252,8 +274,7 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
               IconButton(
                 icon:
                     const Icon(Icons.arrow_back, color: Colors.white, size: 26),
-                onPressed: () =>
-                    Navigator.of(context).push(_createSlideTransition()),
+                onPressed: () => _navigateBack(context),
               ),
               const Expanded(
                 child: Text(
@@ -376,6 +397,7 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                             ),
                           ),
                         ),
+
                       ],
                     ),
                   ],
@@ -386,39 +408,58 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
               if (_currentWorkMode != null) ...[
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: _currentWorkMode == 'Home Office'
-                        ? Colors.green.shade50
-                        : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: _currentWorkMode == 'Home Office'
-                          ? Colors.green.shade200
-                          : Colors.blue.shade200,
+                    gradient: LinearGradient(
+                      colors: _currentWorkMode == 'Sick'
+                          ? [Colors.red.shade400, Colors.red.shade600]
+                          : (_currentWorkMode == 'Home Office'
+                              ? [Colors.green.shade400, Colors.green.shade600]
+                              : [Colors.blue.shade400, Colors.blue.shade600]),
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_currentWorkMode == 'Sick'
+                                ? Colors.red
+                                : (_currentWorkMode == 'Home Office'
+                                    ? Colors.green
+                                    : Colors.blue))
+                            .withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        _currentWorkMode == 'Home Office'
-                            ? Icons.home_work
-                            : Icons.apartment,
-                        size: 16,
-                        color: _currentWorkMode == 'Home Office'
-                            ? Colors.green.shade700
-                            : Colors.blue.shade700,
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          _currentWorkMode == 'Sick'
+                              ? Icons.sick
+                              : (_currentWorkMode == 'Home Office'
+                                  ? Icons.home_work
+                                  : Icons.apartment),
+                          size: 20,
+                          color: Colors.white,
+                        ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 12),
                       Text(
-                        'Today: $_currentWorkMode',
-                        style: TextStyle(
-                          color: _currentWorkMode == 'Home Office'
-                              ? Colors.green.shade700
-                              : Colors.blue.shade700,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                        'Working Mode: $_currentWorkMode',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ],
@@ -597,6 +638,20 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         ),
       ),
     );
+  }
+
+  void _navigateBack(BuildContext context) {
+    // If user is HR or CEO, navigate back to admin dashboard
+    if (_userRole == 'hr' || _userRole == 'ceo') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminDashboard(userRole: _userRole!),
+        ),
+      );
+    } else {
+      // Employee - navigate to work mode selection
+      Navigator.of(context).push(_createSlideTransition());
+    }
   }
 
   Route _createSlideTransition() {

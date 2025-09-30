@@ -6,6 +6,8 @@ import 'package:attendence_management_system/pages/role_selection_page.dart';
 import 'package:attendence_management_system/pages/employee_history_screen.dart';
 import 'package:attendence_management_system/pages/add_employee_screen.dart';
 import 'package:attendence_management_system/pages/announcements.dart';
+import 'package:attendence_management_system/pages/AttendanceScreen.dart';
+import 'package:attendence_management_system/pages/sick.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String userRole; // 'ceo' or 'hr'
@@ -20,6 +22,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
   static const Color bpgGreen = Color(0xFF2E4A2C);
   String? _userName;
   bool _isLoadingName = true;
+  String? _currentWorkMode;
+  bool _homeOfficeApprovedToday = false;
 
   bool get isCEO => widget.userRole.toLowerCase() == 'ceo';
 
@@ -36,6 +40,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
   void initState() {
     super.initState();
     _loadUserName();
+    if (!isCEO) {
+      _fetchTodayWorkMode();
+      _checkHomeOfficeApproval();
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -73,6 +81,146 @@ class _AdminDashboardState extends State<AdminDashboard> {
     }
   }
 
+  Future<void> _fetchTodayWorkMode() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('attendance')
+          .doc(dateKey)
+          .get();
+
+      if (doc.exists && mounted) {
+        setState(() {
+          _currentWorkMode = doc.data()?['workMode'] as String?;
+        });
+      }
+    } catch (e) {
+      print('Error fetching work mode: $e');
+    }
+  }
+
+  Future<void> _checkHomeOfficeApproval() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final now = DateTime.now();
+    final dateId =
+        "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+    try {
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('homeOfficeRequests')
+          .where('userId', isEqualTo: user.uid)
+          .get();
+
+      bool isApproved = false;
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        final statusByDate =
+            Map<String, dynamic>.from(data['statusByDate'] ?? {});
+        if (statusByDate[dateId] == 'approved') {
+          isApproved = true;
+          break;
+        }
+      }
+
+      if (mounted) {
+        setState(() => _homeOfficeApprovedToday = isApproved);
+      }
+    } catch (e) {
+      print('Error checking home office approval: $e');
+    }
+  }
+
+  Future<void> _changeWorkMode() async {
+    if (isCEO) return; // CEO doesn't mark attendance
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    // Build options list
+    List<String> options = ['Office'];
+    if (_homeOfficeApprovedToday) {
+      options.add('Home Office');
+    }
+    options.add('Sick');
+
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Change Work Mode',
+            style: TextStyle(fontWeight: FontWeight.w600)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options.map((mode) {
+            final isSelected = mode == _currentWorkMode ||
+                (mode == 'Office' && _currentWorkMode == 'Home Office');
+            return ListTile(
+              leading: Icon(
+                mode == 'Office' || mode == 'Home Office'
+                    ? (mode == 'Home Office'
+                        ? Icons.home_work
+                        : Icons.apartment)
+                    : Icons.sick,
+                color: isSelected ? bpgGreen : Colors.grey,
+              ),
+              title: Text(mode),
+              trailing:
+                  isSelected ? const Icon(Icons.check, color: bpgGreen) : null,
+              onTap: () => Navigator.pop(context, mode),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+
+    if (selected == null) return;
+
+    try {
+      final docRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('attendance')
+          .doc(dateKey);
+
+      await docRef.set({
+        'workMode': selected,
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() {
+          _currentWorkMode = selected;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Work mode changed to $selected'),
+            backgroundColor: bpgGreen,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
+
   void _openRequestsPage() {
     Navigator.push(
       context,
@@ -105,6 +253,24 @@ class _AdminDashboardState extends State<AdminDashboard> {
       context,
       MaterialPageRoute(
         builder: (context) => const AnnouncementsPage(),
+      ),
+    );
+  }
+
+  void _navigateToAttendance() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const MainAttendanceScreen(),
+      ),
+    );
+  }
+
+  void _navigateToSickLeave() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SickScreen(),
       ),
     );
   }
@@ -253,6 +419,81 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               height: 1.4,
                             ),
                           ),
+                          // Work mode indicator for HR
+                          if (!isCEO && _currentWorkMode != null) ...[
+                            const SizedBox(height: 12),
+                            InkWell(
+                              onTap: _changeWorkMode,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: _currentWorkMode == 'Sick'
+                                        ? [
+                                            Colors.red.shade400,
+                                            Colors.red.shade600
+                                          ]
+                                        : (_currentWorkMode == 'Home Office'
+                                            ? [
+                                                Colors.green.shade400,
+                                                Colors.green.shade600
+                                              ]
+                                            : [
+                                                Colors.blue.shade400,
+                                                Colors.blue.shade600
+                                              ]),
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: (_currentWorkMode == 'Sick'
+                                              ? Colors.red
+                                              : (_currentWorkMode ==
+                                                      'Home Office'
+                                                  ? Colors.green
+                                                  : Colors.blue))
+                                          .withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _currentWorkMode == 'Sick'
+                                          ? Icons.sick
+                                          : (_currentWorkMode == 'Home Office'
+                                              ? Icons.home_work
+                                              : Icons.apartment),
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Today: $_currentWorkMode',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.edit,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -263,28 +504,61 @@ class _AdminDashboardState extends State<AdminDashboard> {
               // Quick Actions Section
               Container(
                 margin: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _buildQuickActionCard(
-                        title: 'Announcements',
-                        subtitle: 'View & Manage Posts',
-                        icon: Icons.campaign,
-                        color: Colors.orange,
-                        onTap: _navigateToAnnouncements,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    if (isCEO)
-                      Expanded(
-                        child: _buildQuickActionCard(
-                          title: 'Add Employee',
-                          subtitle: 'Register New Staff',
-                          icon: Icons.person_add,
-                          color: Colors.blue,
-                          onTap: _navigateToAddEmployee,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildQuickActionCard(
+                            title: 'Announcements',
+                            subtitle: 'View & Manage Posts',
+                            icon: Icons.campaign,
+                            color: Colors.orange,
+                            onTap: _navigateToAnnouncements,
+                          ),
                         ),
+                        const SizedBox(width: 16),
+                        if (isCEO)
+                          Expanded(
+                            child: _buildQuickActionCard(
+                              title: 'Add Employee',
+                              subtitle: 'Register New Staff',
+                              icon: Icons.person_add,
+                              color: Colors.blue,
+                              onTap: _navigateToAddEmployee,
+                            ),
+                          ),
+                        if (!isCEO)
+                          Expanded(
+                            child: _buildQuickActionCard(
+                              title: 'Mark Attendance',
+                              subtitle: 'Track Your Hours',
+                              icon: Icons.access_time_filled,
+                              color: Colors.green,
+                              onTap: _navigateToAttendance,
+                            ),
+                          ),
+                      ],
+                    ),
+                    // Second row for HR sick leave
+                    if (!isCEO) ...[
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickActionCard(
+                              title: 'Sick Leave',
+                              subtitle: 'View Your Sick Days',
+                              icon: Icons.sick,
+                              color: Colors.red,
+                              onTap: _navigateToSickLeave,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(child: SizedBox()), // Empty space
+                        ],
                       ),
+                    ],
                   ],
                 ),
               ),
