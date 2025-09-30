@@ -960,11 +960,10 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
 
                               // Up to 3 bubbles; each with its own status color
                               final show = people.take(3).toList();
-                              print(show);
                               return Padding(
-                                padding: const EdgeInsets.only(top: 36),
+                                padding: const EdgeInsets.only(top: 48),
                                 child: Wrap(
-                                  spacing: 2,
+                                  spacing: 1,
                                   children: show
                                       .map((p) => _InitialBubble(
                                           p.initials, _statusColor(p.status)))
@@ -1022,36 +1021,36 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
                                         ),
                                       ),
                                     // Accepted employee vacation indicator (red dot)
-                                    if (hasAcceptedVacation && !isHoliday)
-                                      Positioned(
-                                        bottom: 2,
-                                        left: 0,
-                                        right: 0,
-                                        child: Center(
-                                          child: Container(
-                                            width: 6,
-                                            height: 6,
-                                            decoration: BoxDecoration(
-                                              color: Colors.red.shade600,
-                                              shape: BoxShape.circle,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                    // if (hasAcceptedVacation && !isHoliday)
+                                    //   Positioned(
+                                    //     bottom: 2,
+                                    //     left: 0,
+                                    //     right: 0,
+                                    //     child: Center(
+                                    //       child: Container(
+                                    //         width: 6,
+                                    //         height: 6,
+                                    //         decoration: BoxDecoration(
+                                    //           color: Colors.red.shade600,
+                                    //           shape: BoxShape.circle,
+                                    //         ),
+                                    //       ),
+                                    //     ),
+                                    //   ),
                                     // If both holiday and accepted vacation, show both dots
-                                    if (hasAcceptedVacation && isHoliday)
-                                      Positioned(
-                                        bottom: 2,
-                                        left: 8,
-                                        child: Container(
-                                          width: 6,
-                                          height: 6,
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.shade600,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                      ),
+                                    // if (hasAcceptedVacation && isHoliday)
+                                    //   Positioned(
+                                    //     bottom: 2,
+                                    //     left: 8,
+                                    //     child: Container(
+                                    //       width: 6,
+                                    //       height: 6,
+                                    //       decoration: BoxDecoration(
+                                    //         color: Colors.red.shade600,
+                                    //         shape: BoxShape.circle,
+                                    //       ),
+                                    //     ),
+                                    //   ),
                                   ],
                                 ),
                               );
@@ -1084,19 +1083,19 @@ class _TeamRangePickerSheetState extends State<TeamRangePickerSheet> {
                             children: [
                               const _LegendItem(
                                   color: Colors.amber, label: 'Public holiday'),
-                              const _LegendItem(
-                                  color: Colors.orange, label: 'Team overlaps'),
-                              if (widget.showOtherEmployeeVacations)
-                                const _LegendItem(
-                                    color: Colors.red,
-                                    label: 'Team approved vacations'),
+                              // const _LegendItem(
+                              //     color: Colors.orange, label: 'Team overlaps'),
+                              // if (widget.showOtherEmployeeVacations)
+                              //   const _LegendItem(
+                              //       color: Colors.red,
+                              //       label: 'Team approved vacations'),
                             ],
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 10),
-                    _ConflictsPanel(vacations: _rangesForSelected()),
+                    // _ConflictsPanel(vacations: _rangesForSelected()),
                   ],
                 ),
               ),
@@ -1205,7 +1204,7 @@ class _InitialBubble extends StatelessWidget {
         border: Border.all(color: color.withOpacity(0.6)),
         color: color.withOpacity(0.10),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 10)),
+      child: Text(text.substring(0,1), style: const TextStyle(fontSize: 10)),
     );
   }
 }
