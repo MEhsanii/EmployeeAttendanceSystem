@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:attendence_management_system/utils/responsive_utils.dart';
+
 
 class AnnouncementsPage extends StatefulWidget {
   const AnnouncementsPage({super.key});
@@ -822,26 +824,37 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                   ),
                 ),
                 if (reactionCounts.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: context.w(2)),
                   Expanded(
                     child: GestureDetector(
                       onTap: () => _showLikesReactionsList(doc),
                       child: Wrap(
-                        spacing: 8,
-                        runSpacing: -8,
+                        spacing: context.w(2),
+                        runSpacing: context.h(0.5), // Changed from -8 to positive small value
+                        alignment: WrapAlignment.start,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: reactionCounts.entries
                             .map((e) => Chip(
-                                  label: Text('${e.key} ${e.value}'),
-                                  backgroundColor: bpgGreen.withOpacity(0.15),
-                                  labelStyle: TextStyle(
-                                    color: bpgGreen,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  side: BorderSide(
-                                    color: bpgGreen.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                ))
+                          label: Text(
+                            '${e.key} ${e.value}',
+                            style: TextStyle(
+                              fontSize: context.sp(12), // Added responsive font size
+                              color: bpgGreen,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          backgroundColor: bpgGreen.withOpacity(0.15),
+                          side: BorderSide(
+                            color: bpgGreen.withOpacity(0.3),
+                            width: 1,
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.w(2),
+                            vertical: context.h(0.3),
+                          ), // Added responsive padding
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduces chip size
+                          visualDensity: VisualDensity.compact, // Makes it more compact
+                        ))
                             .toList(),
                       ),
                     ),

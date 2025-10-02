@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:attendence_management_system/utils/responsive_utils.dart';
 
 import '../pages/role_selection_page.dart';
 import '../pages/work_mode_selection_page.dart';
@@ -114,12 +115,12 @@ class _SplashScreenState extends State<SplashScreen>
             children: [
               Image.asset(
                 'assets/BPGLogo.png',
-                height: 180,
+                height: context.h(22),
               ),
-              const SizedBox(height: 60),
-              const CircularProgressIndicator(
+              SizedBox(height: context.h(7.5)),
+              CircularProgressIndicator(
                 color: Colors.white70,
-                strokeWidth: 2.5,
+                strokeWidth: context.w(0.6),
               ),
             ],
           ),

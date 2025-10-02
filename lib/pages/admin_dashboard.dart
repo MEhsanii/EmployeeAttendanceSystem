@@ -10,6 +10,7 @@ import 'package:attendence_management_system/pages/AttendanceScreen.dart';
 import 'package:attendence_management_system/pages/sick.dart';
 import 'package:attendence_management_system/pages/vacation.dart';
 import 'package:attendence_management_system/pages/home_office.dart';
+import 'package:attendence_management_system/utils/responsive_utils.dart';
 
 class AdminDashboard extends StatefulWidget {
   final String userRole; // 'ceo' or 'hr'
@@ -303,15 +304,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
       appBar: AppBar(
         title: Text(
           dashboardTitle,
-          style:
-              const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white,
+              fontSize: context.sp(18),
+              fontWeight: FontWeight.bold),
         ),
         backgroundColor: bpgGreen,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
+            icon: Icon(Icons.more_vert,
+                color: Colors.white, size: context.sp(24)),
             onSelected: (value) {
               if (value == 'logout') {
                 _signOut();
@@ -322,19 +326,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                 value: 'profile',
                 child: Row(
                   children: [
-                    const Icon(Icons.person_outline, size: 20),
-                    const SizedBox(width: 8),
-                    Text(user?.email ?? 'Profile'),
+                    Icon(Icons.person_outline, size: context.sp(20)),
+                    SizedBox(width: context.w(2)),
+                    Text(user?.email ?? 'Profile',
+                        style: TextStyle(fontSize: context.sp(14))),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'logout',
                 child: Row(
                   children: [
-                    Icon(Icons.logout, color: Colors.red, size: 20),
-                    SizedBox(width: 8),
-                    Text('Logout', style: TextStyle(color: Colors.red)),
+                    Icon(Icons.logout, color: Colors.red, size: context.sp(20)),
+                    SizedBox(width: context.w(2)),
+                    Text('Logout',
+                        style: TextStyle(
+                            color: Colors.red, fontSize: context.sp(14))),
                   ],
                 ),
               ),
@@ -358,17 +365,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 // Header Section
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: EdgeInsets.all(context.w(6)),
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(context.w(5)),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [
+                      borderRadius: BorderRadius.circular(context.w(4)),
+                      boxShadow: [
                         BoxShadow(
                           color: Colors.black26,
-                          blurRadius: 8,
-                          offset: Offset(0, 4),
+                          blurRadius: context.w(2),
+                          offset: Offset(0, context.h(0.5)),
                         ),
                       ],
                     ),
@@ -379,15 +386,15 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           children: [
                             Icon(
                               dashboardIcon,
-                              size: 40,
+                              size: context.sp(40),
                               color: bpgGreen,
                             ),
-                            const SizedBox(width: 16),
+                            SizedBox(width: context.w(4)),
                             Expanded(
                               child: Text(
                                 welcomeTitle,
-                                style: const TextStyle(
-                                  fontSize: 20,
+                                style: TextStyle(
+                                  fontSize: context.sp(20),
                                   fontWeight: FontWeight.bold,
                                   color: bpgGreen,
                                 ),
@@ -398,22 +405,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: bpgGreen,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: context.w(4),
+                                    vertical: context.h(1.5)),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius:
+                                      BorderRadius.circular(context.w(3)),
                                 ),
                                 elevation: 2,
                               ),
-                              icon: const Icon(Icons.inbox_rounded, size: 20, color: Color(0xFF4CAF50),),
-                              label: const Text('Requests',
+                              icon: Icon(
+                                Icons.inbox_rounded,
+                                size: context.sp(20),
+                                color: Color(0xFF4CAF50),
+                              ),
+                              label: Text('Requests',
                                   style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: 16)),
+                                      fontSize: context.sp(16))),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        SizedBox(height: context.h(2)),
                         // Full-width description section
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,32 +437,34 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                   _isLoadingName
                                       ? 'Welcome, Loading...!'
                                       : 'Welcome, ${_userName ?? 'Admin'}!',
-                                  style: const TextStyle(
-                                    fontSize: 16,
+                                  style: TextStyle(
+                                    fontSize: context.sp(16),
                                     color: Colors.grey,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: context.h(1)),
                             Text(
                               description,
-                              style: const TextStyle(
-                                fontSize: 14,
+                              style: TextStyle(
+                                fontSize: context.sp(14),
                                 color: Colors.grey,
                                 height: 1.4,
                               ),
                             ),
                             // Work mode indicator for HR
                             if (!isCEO && _currentWorkMode != null) ...[
-                              const SizedBox(height: 12),
+                              SizedBox(height: context.h(1.5)),
                               InkWell(
                                 onTap: _changeWorkMode,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius:
+                                    BorderRadius.circular(context.w(2)),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 8),
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: context.w(3),
+                                      vertical: context.h(1)),
                                   decoration: BoxDecoration(
                                     gradient: LinearGradient(
                                       colors: _currentWorkMode == 'Sick'
@@ -469,7 +484,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
                                     ),
-                                    borderRadius: BorderRadius.circular(8),
+                                    borderRadius:
+                                        BorderRadius.circular(context.w(2)),
                                     boxShadow: [
                                       BoxShadow(
                                         color: (_currentWorkMode == 'Sick'
@@ -479,8 +495,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                     ? Colors.green
                                                     : Colors.blue))
                                             .withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 3),
+                                        blurRadius: context.w(2),
+                                        offset: Offset(0, context.h(0.4)),
                                       ),
                                     ],
                                   ),
@@ -494,22 +510,22 @@ class _AdminDashboardState extends State<AdminDashboard> {
                                                 ? Icons.home_work
                                                 : Icons.apartment),
                                         color: Colors.white,
-                                        size: 18,
+                                        size: context.sp(18),
                                       ),
-                                      const SizedBox(width: 8),
+                                      SizedBox(width: context.w(2)),
                                       Text(
                                         'Today: $_currentWorkMode',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                                          fontSize: context.sp(14),
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
+                                      SizedBox(width: context.w(1)),
+                                      Icon(
                                         Icons.edit,
                                         color: Colors.white,
-                                        size: 14,
+                                        size: context.sp(14),
                                       ),
                                     ],
                                   ),
@@ -969,7 +985,6 @@ class _AdminRequestsPageState extends State<_AdminRequestsPage>
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-
         backgroundColor: const Color(0xFFF8F9FA),
         appBar: AppBar(
           title: const Text('Employee Requests',

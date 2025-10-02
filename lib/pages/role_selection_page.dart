@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:attendence_management_system/pages/loginPage.dart';
 import 'package:attendence_management_system/pages/employee_signup_screen.dart';
+import 'package:attendence_management_system/utils/responsive_utils.dart';
 
 enum UserRole { employee, hr, ceo }
 
@@ -80,26 +81,28 @@ class RoleSelectionPage extends StatelessWidget {
                 labelText: 'Invitation ID',
                 hintText: 'Enter invitation ID',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(context.w(2)),
                 ),
                 prefixIcon: const Icon(Icons.key),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: context.h(2)),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: EdgeInsets.all(context.w(3)),
               decoration: BoxDecoration(
                 color: Colors.blue.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(context.w(2)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
+                  Icon(Icons.info_outline,
+                      color: Colors.blue, size: context.sp(20)),
+                  SizedBox(width: context.w(2)),
+                  Expanded(
                     child: Text(
                       'This ID was provided by your administrator',
-                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                      style: TextStyle(
+                          fontSize: context.sp(12), color: Colors.blue),
                     ),
                   ),
                 ],
@@ -149,18 +152,18 @@ class RoleSelectionPage extends StatelessWidget {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
-            constraints:
-                BoxConstraints(maxWidth: isWeb ? 500 : double.infinity),
+            constraints: BoxConstraints(
+                maxWidth: isWeb ? context.w(120) : double.infinity),
             child: Container(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(context.w(6)),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
+                borderRadius: BorderRadius.circular(context.w(5)),
+                boxShadow: [
                   BoxShadow(
                     color: Colors.black26,
-                    blurRadius: 12,
-                    offset: Offset(0, 6),
+                    blurRadius: context.w(3),
+                    offset: Offset(0, context.h(0.75)),
                   ),
                 ],
               ),
@@ -169,60 +172,62 @@ class RoleSelectionPage extends StatelessWidget {
                 children: [
                   Image.asset(
                     'assets/BPGLogo.png',
-                    height: 80,
+                    height: context.h(10),
                   ),
-                  const SizedBox(height: 24),
-                  const Text(
+                  SizedBox(height: context.h(3)),
+                  Text(
                     'Welcome to BPG',
                     style: TextStyle(
-                      fontSize: 22,
+                      fontSize: context.sp(22),
                       fontWeight: FontWeight.bold,
                       color: bpgGreen,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
+                  SizedBox(height: context.h(1)),
+                  Text(
                     'Please select your role to continue',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: context.sp(16),
                       color: Colors.grey,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: context.h(4)),
 
                   // Role selection cards
                   ...UserRole.values
                       .map((role) => Container(
                             width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 16),
+                            margin: EdgeInsets.only(bottom: context.h(2)),
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: () => _navigateToLogin(context, role),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius:
+                                    BorderRadius.circular(context.w(3)),
                                 child: Container(
-                                  padding: const EdgeInsets.all(20),
+                                  padding: EdgeInsets.all(context.w(5)),
                                   decoration: BoxDecoration(
                                     border: Border.all(
                                         color: bpgGreen.withOpacity(0.3)),
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius:
+                                        BorderRadius.circular(context.w(3)),
                                   ),
                                   child: Row(
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.all(12),
+                                        padding: EdgeInsets.all(context.w(3)),
                                         decoration: BoxDecoration(
                                           color: bpgGreen.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(
+                                              context.w(2.5)),
                                         ),
                                         child: Icon(
                                           _getRoleIcon(role),
                                           color: bpgGreen,
-                                          size: 28,
+                                          size: context.sp(28),
                                         ),
                                       ),
-                                      const SizedBox(width: 16),
+                                      SizedBox(width: context.w(4)),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -230,27 +235,27 @@ class RoleSelectionPage extends StatelessWidget {
                                           children: [
                                             Text(
                                               _getRoleDisplayName(role),
-                                              style: const TextStyle(
-                                                fontSize: 18,
+                                              style: TextStyle(
+                                                fontSize: context.sp(18),
                                                 fontWeight: FontWeight.bold,
                                                 color: bpgGreen,
                                               ),
                                             ),
-                                            const SizedBox(height: 4),
+                                            SizedBox(height: context.h(0.5)),
                                             Text(
                                               _getRoleDescription(role),
-                                              style: const TextStyle(
-                                                fontSize: 14,
+                                              style: TextStyle(
+                                                fontSize: context.sp(14),
                                                 color: Colors.grey,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      const Icon(
+                                      Icon(
                                         Icons.arrow_forward_ios,
                                         color: bpgGreen,
-                                        size: 16,
+                                        size: context.sp(16),
                                       ),
                                     ],
                                   ),
@@ -261,16 +266,17 @@ class RoleSelectionPage extends StatelessWidget {
                       .toList(),
 
                   // Join with Invitation option
-                  const SizedBox(height: 8),
+                  SizedBox(height: context.h(1)),
                   Row(
                     children: [
                       Expanded(child: Divider(color: Colors.grey.shade300)),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: EdgeInsets.symmetric(horizontal: context.w(4)),
                         child: Text(
                           'OR',
                           style: TextStyle(
                             color: Colors.grey.shade600,
+                            fontSize: context.sp(14),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -278,7 +284,7 @@ class RoleSelectionPage extends StatelessWidget {
                       Expanded(child: Divider(color: Colors.grey.shade300)),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: context.h(1)),
 
                   Container(
                     width: double.infinity,
@@ -286,57 +292,58 @@ class RoleSelectionPage extends StatelessWidget {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () => _showInvitationDialog(context),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(context.w(3)),
                         child: Container(
-                          padding: const EdgeInsets.all(20),
+                          padding: EdgeInsets.all(context.w(5)),
                           decoration: BoxDecoration(
                             border:
                                 Border.all(color: Colors.blue.withOpacity(0.3)),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(context.w(3)),
                             color: Colors.blue.withOpacity(0.05),
                           ),
                           child: Row(
                             children: [
                               Container(
-                                padding: const EdgeInsets.all(12),
+                                padding: EdgeInsets.all(context.w(3)),
                                 decoration: BoxDecoration(
                                   color: Colors.blue.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius:
+                                      BorderRadius.circular(context.w(2.5)),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.mail,
                                   color: Colors.blue,
-                                  size: 28,
+                                  size: context.sp(28),
                                 ),
                               ),
-                              const SizedBox(width: 16),
-                              const Expanded(
+                              SizedBox(width: context.w(4)),
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       'Join with Invitation',
                                       style: TextStyle(
-                                        fontSize: 18,
+                                        fontSize: context.sp(18),
                                         fontWeight: FontWeight.bold,
                                         color: Colors.blue,
                                       ),
                                     ),
-                                    SizedBox(height: 4),
+                                    SizedBox(height: context.h(0.5)),
                                     Text(
                                       'Have an invitation ID? Set up your account here',
                                       style: TextStyle(
-                                        fontSize: 14,
+                                        fontSize: context.sp(14),
                                         color: Colors.grey,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.arrow_forward_ios,
                                 color: Colors.blue,
-                                size: 16,
+                                size: context.sp(16),
                               ),
                             ],
                           ),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:attendence_management_system/utils/responsive_utils.dart';
 
 // =========================
 // History Screen
@@ -278,7 +279,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F3),
       appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(112),
+        preferredSize: Size.fromHeight(context.h(14)),
         child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -288,25 +289,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 12,
-            left: 8,
-            right: 16,
-            bottom: 14,
+            top: MediaQuery.of(context).padding.top + context.h(1.5),
+            left: context.w(2),
+            right: context.w(4),
+            bottom: context.h(1.8),
           ),
           child: Row(
             children: [
               IconButton(
-                icon:
-                    const Icon(Icons.arrow_back, color: Colors.white, size: 26),
+                icon: Icon(Icons.arrow_back,
+                    color: Colors.white, size: context.sp(26)),
                 onPressed: () => Navigator.of(context).pop(),
               ),
-              const SizedBox(width: 10),
-              const Expanded(
+              SizedBox(width: context.w(2.5)),
+              Expanded(
                 child: Text(
                   'Attendance History',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 20,
+                    fontSize: context.sp(20),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -336,11 +337,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   : fetchFilteredRecords(selectedMonth),
               child: ListView(
                 children: [
-                  const SizedBox(height: 14),
+                  SizedBox(height: context.h(1.8)),
                   _summaryCard(appGreen),
-                  const SizedBox(height: 12),
+                  SizedBox(height: context.h(1.5)),
                   _dailyEntriesSection(appGreen),
-                  const SizedBox(height: 28),
+                  SizedBox(height: context.h(3.5)),
                 ],
               ),
             ),
@@ -354,31 +355,39 @@ class _HistoryScreenState extends State<HistoryScreen> {
         : selectedMonth; // e.g., "August 2025"
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+      margin: EdgeInsets.symmetric(horizontal: context.w(4)),
+      padding: EdgeInsets.fromLTRB(
+          context.w(4), context.h(2), context.w(4), context.h(2.3)),
       decoration: BoxDecoration(
         color: appGreen,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 6))
+        borderRadius: BorderRadius.circular(context.w(5.5)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black26,
+              blurRadius: context.w(2.5),
+              offset: Offset(0, context.h(0.75)))
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Monthly Summary',
+          Text('Monthly Summary',
               style: TextStyle(
-                  color: Colors.white70, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
+                  color: Colors.white70,
+                  fontSize: context.sp(14),
+                  fontWeight: FontWeight.w700)),
+          SizedBox(height: context.h(0.75)),
           Text(
             monthTitle,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: context.sp(22),
+                fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 14),
+          SizedBox(height: context.h(1.8)),
           Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: context.w(3),
+            runSpacing: context.w(3),
             children: [
               _pill(appGreen, Icons.access_time, 'Total Work',
                   _fmtHMM(_summary.totalWork),
@@ -406,24 +415,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _pill(Color appGreen, IconData icon, String label, String value,
       {bool filled = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: EdgeInsets.symmetric(
+          horizontal: context.w(3.5), vertical: context.h(1.25)),
       decoration: BoxDecoration(
         color: filled
             ? Colors.white.withOpacity(0.12)
             : Colors.white.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(context.w(3.5)),
         border: Border.all(color: Colors.white.withOpacity(0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 18, color: Colors.white),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(color: Colors.white)),
-          const SizedBox(width: 8),
+          Icon(icon, size: context.sp(18), color: Colors.white),
+          SizedBox(width: context.w(2)),
+          Text(label,
+              style: TextStyle(color: Colors.white, fontSize: context.sp(14))),
+          SizedBox(width: context.w(2)),
           Text(value,
-              style: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.w900)),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: context.sp(14),
+                  fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -432,24 +445,29 @@ class _HistoryScreenState extends State<HistoryScreen> {
   // ---- Daily entries ----
   Widget _dailyEntriesSection(Color appGreen) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: context.w(4)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))
+        borderRadius: BorderRadius.circular(context.w(4.5)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12,
+              blurRadius: context.w(2),
+              offset: Offset(0, context.h(0.5)))
         ],
       ),
       child: ExpansionTile(
         initiallyExpanded: true,
-        tilePadding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        tilePadding: EdgeInsets.fromLTRB(
+            context.w(4), context.h(1), context.w(4), context.h(1)),
         childrenPadding: EdgeInsets.zero,
         iconColor: appGreen,
         collapsedIconColor: Colors.grey,
-        title: const Text('Daily entries',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18)),
+        title: Text('Daily entries',
+            style: TextStyle(
+                fontWeight: FontWeight.w900, fontSize: context.sp(18))),
         subtitle: Text('${_days.length} day(s)',
-            style: const TextStyle(color: Colors.black54)),
+            style: TextStyle(color: Colors.black54, fontSize: context.sp(14))),
         children: _days.isEmpty
             ? [
                 const Padding(
@@ -469,29 +487,36 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final isPast = d.date.isBefore(DateTime.now());
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+      margin: EdgeInsets.fromLTRB(
+          context.w(4), context.h(0.75), context.w(4), context.h(1.5)),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 3))
+        borderRadius: BorderRadius.circular(context.w(3.5)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12,
+              blurRadius: context.w(1.5),
+              offset: Offset(0, context.h(0.4)))
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        padding: EdgeInsets.fromLTRB(
+            context.w(3.5), context.h(1.5), context.w(3.5), context.h(1.5)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Date + badges
             Row(
               children: [
-                const Icon(Icons.calendar_today, size: 16, color: appGreen),
-                const SizedBox(width: 6),
+                Icon(Icons.calendar_today,
+                    size: context.sp(16), color: appGreen),
+                SizedBox(width: context.w(1.5)),
                 Expanded(
                   child: Text(
                     _fmtDate(d.date),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
+                      fontSize: context.sp(14),
                       color: appGreen,
                     ),
                   ),
@@ -500,8 +525,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   _chip(
                       text: d.holidayName ?? "Holiday",
                       icon: Icons.beach_access),
-                if (!d.isHoliday && d.workMode != null && d.workMode != "Sick") ...[
-                  const SizedBox(width: 6),
+                if (!d.isHoliday &&
+                    d.workMode != null &&
+                    d.workMode != "Sick") ...[
+                  SizedBox(width: context.w(1.5)),
                   _chip(
                     text: d.workMode!,
                     icon: d.workMode == 'Home Office'
@@ -510,36 +537,42 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                 ],
                 if (d.workMode == 'Sick') ...[
-                  const SizedBox(width: 6),
-                  _chip(text: 'Sick', icon: Icons.add_box, iconColor: Colors.amber),
+                  SizedBox(width: context.w(1.5)),
+                  _chip(
+                      text: 'Sick',
+                      icon: Icons.add_box,
+                      iconColor: Colors.amber),
                 ],
               ],
             ),
-            const SizedBox(height: 10),
+            SizedBox(height: context.h(1.25)),
 
             if (!d.isHoliday) ...[
               _row("Start Work", Icons.login, _fmtTime(d.startWork)),
               _row("Start Break", Icons.coffee, _fmtTime(d.startBreak)),
               _row("End Break", Icons.coffee_outlined, _fmtTime(d.endBreak)),
               _row("End Work", Icons.logout, _fmtTime(d.endWork)),
-              const SizedBox(height: 8),
+              SizedBox(height: context.h(1)),
               Row(
                 children: [
-                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                  const SizedBox(width: 6),
+                  Icon(Icons.access_time,
+                      size: context.sp(16), color: Colors.grey),
+                  SizedBox(width: context.w(1.5)),
                   Text(
                     "Total Work: ${d.workDuration == null ? '--:--' : _fmtHMM(d.workDuration!)}"
                     "${d.breakDuration != null ? "  •  Break: ${_fmtHMM(d.breakDuration!)}" : ""}",
                     style: TextStyle(
                       color: Colors.black87.withOpacity(isPast ? 0.9 : 1),
                       fontWeight: FontWeight.w600,
+                      fontSize: context.sp(14),
                     ),
                   ),
                 ],
               ),
             ] else
-              const Text("No attendance — public holiday",
-                  style: TextStyle(color: Colors.black54)),
+              Text("No attendance — public holiday",
+                  style: TextStyle(
+                      color: Colors.black54, fontSize: context.sp(14))),
           ],
         ),
       ),
@@ -548,17 +581,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _row(String label, IconData icon, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: context.h(0.25)),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(children: [
-            Icon(icon, size: 18, color: Colors.grey.shade600),
-            const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 14)),
+            Icon(icon, size: context.sp(18), color: Colors.grey.shade600),
+            SizedBox(width: context.w(1.5)),
+            Text(label, style: TextStyle(fontSize: context.sp(14))),
           ]),
           Text(value,
-              style: const TextStyle(fontSize: 14, color: Colors.black54)),
+              style:
+                  TextStyle(fontSize: context.sp(14), color: Colors.black54)),
         ],
       ),
     );
@@ -568,18 +602,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
     required String text,
     required IconData icon,
     Color? iconColor, // optional & nullable
-  }){
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(
+          horizontal: context.w(2), vertical: context.h(0.5)),
       decoration: BoxDecoration(
         color: const Color(0xFF2E7D32).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(context.w(5)),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: iconColor ?? const Color(0xFF2E7D32)),
-        const SizedBox(width: 4),
+        Icon(icon,
+            size: context.sp(14), color: iconColor ?? const Color(0xFF2E7D32)),
+        SizedBox(width: context.w(1)),
         Text(text,
-            style: TextStyle(fontSize: 12, color: iconColor ?? Color(0xFF2E7D32))),
+            style: TextStyle(
+                fontSize: context.sp(12),
+                color: iconColor ?? Color(0xFF2E7D32))),
       ]),
     );
   }
@@ -670,25 +708,29 @@ class _MonthDropdown extends StatelessWidget {
       tooltip: 'Select month',
       initialValue: value,
       onSelected: onChanged,
-      offset: const Offset(0, 40),
+      offset: Offset(0, context.h(5)),
       itemBuilder: (context) => items
           .map((m) => PopupMenuItem<String>(value: m, child: Text(m)))
           .toList(),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: EdgeInsets.symmetric(
+            horizontal: context.w(3), vertical: context.h(1)),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(context.w(2.5)),
           border: Border.all(color: Colors.white.withOpacity(0.25)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.keyboard_arrow_down, color: Colors.white),
-            const SizedBox(width: 6),
+            Icon(Icons.keyboard_arrow_down,
+                color: Colors.white, size: context.sp(24)),
+            SizedBox(width: context.w(1.5)),
             Text(value,
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: context.sp(14),
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),
