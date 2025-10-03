@@ -829,8 +829,8 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                     child: GestureDetector(
                       onTap: () => _showLikesReactionsList(doc),
                       child: Wrap(
-                        spacing: context.w(2),
-                        runSpacing: context.h(0.5), // Changed from -8 to positive small value
+                        // spacing: context.w(2),
+                        // runSpacing: context.h(0.5), // Changed from -8 to positive small value
                         alignment: WrapAlignment.start,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: reactionCounts.entries
@@ -838,7 +838,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                           label: Text(
                             '${e.key} ${e.value}',
                             style: TextStyle(
-                              fontSize: context.sp(12), // Added responsive font size
+                              fontSize: context.w(3), // Added responsive font size
                               color: bpgGreen,
                               fontWeight: FontWeight.w600,
                             ),
@@ -848,10 +848,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
                             color: bpgGreen.withOpacity(0.3),
                             width: 1,
                           ),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: context.w(2),
-                            vertical: context.h(0.3),
-                          ), // Added responsive padding
+                          
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduces chip size
                           visualDensity: VisualDensity.compact, // Makes it more compact
                         ))
