@@ -394,7 +394,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               child: Text(
                                 welcomeTitle,
                                 style: TextStyle(
-                                  fontSize: context.sp(20),
+                                  fontSize: context.w(4.5),
                                   fontWeight: FontWeight.bold,
                                   color: bpgGreen,
                                 ),
@@ -416,13 +416,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
                               ),
                               icon: Icon(
                                 Icons.inbox_rounded,
-                                size: context.sp(20),
+                                size: context.h(2),
                                 color: Color(0xFF4CAF50),
                               ),
                               label: Text('Requests',
                                   style: TextStyle(
                                       fontWeight: FontWeight.w600,
-                                      fontSize: context.sp(16))),
+                                      fontSize: context.h(1.7))),
                             ),
                           ],
                         ),
