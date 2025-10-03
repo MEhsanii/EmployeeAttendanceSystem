@@ -100,9 +100,11 @@ class _LoginPageState extends State<LoginPage> {
             break;
         }
 
-        Navigator.pushReplacement(
+        // Clear entire navigation stack and push the new page
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => nextPage),
+              (route) => false, // Remove all previous routes
         );
       }
     } catch (e) {
@@ -143,7 +145,7 @@ class _LoginPageState extends State<LoginPage> {
           padding: const EdgeInsets.all(24),
           child: ConstrainedBox(
             constraints:
-                BoxConstraints(maxWidth: isWeb ? 400 : double.infinity),
+            BoxConstraints(maxWidth: isWeb ? 400 : double.infinity),
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -246,17 +248,17 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       child: _isLoading
                           ? const CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            )
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      )
                           : const Text(
-                              'Login',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                letterSpacing: 1,
-                              ),
-                            ),
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          letterSpacing: 1,
+                        ),
+                      ),
                     ),
                   ),
                 ],

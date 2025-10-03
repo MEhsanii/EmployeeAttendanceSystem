@@ -87,7 +87,7 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
         final statusByDate =
-            Map<String, dynamic>.from(data['statusByDate'] ?? {});
+        Map<String, dynamic>.from(data['statusByDate'] ?? {});
         if (statusByDate[dateId] == 'approved') {
           isApproved = true;
           break;
@@ -244,234 +244,247 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
+  // Handle back button press (both AppBar and phone hardware button)
+  Future<bool> _handleBackPress() async {
+    _navigateBack(context);
+    return false; // Prevent default back behavior
+  }
+
   // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     const appGreen = Color(0xFF2E7D32);
     final now = DateTime.now();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F3),
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(112),
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF2E7D32), Color(0xFF388E3C)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 12,
-            left: 8,
-            right: 16,
-            bottom: 14,
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              IconButton(
-                icon:
-                    const Icon(Icons.arrow_back, color: Colors.white, size: 26),
-                onPressed: () => _navigateBack(context),
+    return WillPopScope(
+      onWillPop: _handleBackPress,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF3F6F3),
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(112),
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF2E7D32), Color(0xFF388E3C)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              const Expanded(
-                child: Text(
-                  'Attendance Tracker',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+            ),
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 12,
+              left: 8,
+              right: 16,
+              bottom: 14,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back,
+                      color: Colors.white, size: 26),
+                  onPressed: () => _navigateBack(context),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Attendance Tracker',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.25)),
-                ),
-                child: Text(
-                  "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5E9),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.today, size: 16, color: appGreen),
-                    const SizedBox(width: 6),
-                    Text(
-                      "Today • ${_weekdayName(now.weekday)}, ${_monthNameLong(now.month)} ${now.day}",
-                      style: const TextStyle(
-                        color: appGreen,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _currentWorkMode != 'Office'
-                              ? () => setWorkMode('Office')
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _currentWorkMode == 'Office'
-                                ? Colors.blue.shade600
-                                : Colors.white,
-                            foregroundColor: _currentWorkMode == 'Office'
-                                ? Colors.white
-                                : Colors.blue.shade700,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            elevation: 1,
-                          ),
-                          icon: Icon(
-                            _currentWorkMode == 'Office'
-                                ? Icons.check_circle
-                                : Icons.apartment,
-                            size: 14,
-                          ),
-                          label: Text(
-                            'Office',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        ElevatedButton.icon(
-                          onPressed: (_homeOfficeApprovedToday &&
-                                  _currentWorkMode != 'Home Office')
-                              ? () => setWorkMode('Home Office')
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _currentWorkMode == 'Home Office'
-                                ? Colors.green.shade600
-                                : (_homeOfficeApprovedToday
-                                    ? Colors.green.shade600
-                                    : Colors.grey.shade400),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            elevation: _homeOfficeApprovedToday ? 1 : 0,
-                          ),
-                          icon: Icon(
-                            _currentWorkMode == 'Home Office'
-                                ? Icons.check_circle
-                                : Icons.home_work,
-                            size: 14,
-                          ),
-                          label: Text(
-                            _homeOfficeApprovedToday ? 'Home' : 'Home',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Current work mode indicator
-              if (_currentWorkMode != null) ...[
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: _currentWorkMode == 'Sick'
-                          ? [Colors.red.shade400, Colors.red.shade600]
-                          : (_currentWorkMode == 'Home Office'
-                              ? [Colors.green.shade400, Colors.green.shade600]
-                              : [Colors.blue.shade400, Colors.blue.shade600]),
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (_currentWorkMode == 'Sick'
-                                ? Colors.red
-                                : (_currentWorkMode == 'Home Office'
-                                    ? Colors.green
-                                    : Colors.blue))
-                            .withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    border: Border.all(color: Colors.white.withOpacity(0.25)),
+                  ),
+                  child: Text(
+                    "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}",
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _currentWorkMode == 'Sick'
-                              ? Icons.sick
-                              : (_currentWorkMode == 'Home Office'
-                                  ? Icons.home_work
-                                  : Icons.apartment),
-                          size: 20,
-                          color: Colors.white,
+                      const Icon(Icons.today, size: 16, color: appGreen),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Today • ${_weekdayName(now.weekday)}, ${_monthNameLong(now.month)} ${now.day}",
+                        style: const TextStyle(
+                          color: appGreen,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Working Mode: $_currentWorkMode',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          letterSpacing: 0.5,
-                        ),
+                      const Spacer(),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _currentWorkMode != 'Office'
+                                ? () => setWorkMode('Office')
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _currentWorkMode == 'Office'
+                                  ? Colors.blue.shade600
+                                  : Colors.white,
+                              foregroundColor: _currentWorkMode == 'Office'
+                                  ? Colors.white
+                                  : Colors.blue.shade700,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              elevation: 1,
+                            ),
+                            icon: Icon(
+                              _currentWorkMode == 'Office'
+                                  ? Icons.check_circle
+                                  : Icons.apartment,
+                              size: 14,
+                            ),
+                            label: Text(
+                              'Office',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          ElevatedButton.icon(
+                            onPressed: (_homeOfficeApprovedToday &&
+                                _currentWorkMode != 'Home Office')
+                                ? () => setWorkMode('Home Office')
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                              _currentWorkMode == 'Home Office'
+                                  ? Colors.green.shade600
+                                  : (_homeOfficeApprovedToday
+                                  ? Colors.green.shade600
+                                  : Colors.grey.shade400),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              elevation: _homeOfficeApprovedToday ? 1 : 0,
+                            ),
+                            icon: Icon(
+                              _currentWorkMode == 'Home Office'
+                                  ? Icons.check_circle
+                                  : Icons.home_work,
+                              size: 14,
+                            ),
+                            label: Text(
+                              _homeOfficeApprovedToday ? 'Home' : 'Home',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 14),
-              ],
+                // Current work mode indicator
+                if (_currentWorkMode != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: _currentWorkMode == 'Sick'
+                            ? [Colors.red.shade400, Colors.red.shade600]
+                            : (_currentWorkMode == 'Home Office'
+                            ? [
+                          Colors.green.shade400,
+                          Colors.green.shade600
+                        ]
+                            : [Colors.blue.shade400, Colors.blue.shade600]),
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (_currentWorkMode == 'Sick'
+                              ? Colors.red
+                              : (_currentWorkMode == 'Home Office'
+                              ? Colors.green
+                              : Colors.blue))
+                              .withOpacity(0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            _currentWorkMode == 'Sick'
+                                ? Icons.sick
+                                : (_currentWorkMode == 'Home Office'
+                                ? Icons.home_work
+                                : Icons.apartment),
+                            size: 20,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Working Mode: $_currentWorkMode',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
 
-              _buildActionCard('Start Work', 'startWork'),
-              _buildActionCard('Start Break', 'startBreak'),
-              _buildActionCard('End Break', 'endBreak'),
-              _buildActionCard('End Work', 'endWork'),
-            ],
+                _buildActionCard('Start Work', 'startWork'),
+                _buildActionCard('Start Break', 'startBreak'),
+                _buildActionCard('End Break', 'endBreak'),
+                _buildActionCard('End Work', 'endWork'),
+              ],
+            ),
           ),
         ),
       ),
@@ -492,7 +505,8 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       child: Padding(
@@ -580,7 +594,7 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                 const SizedBox(width: 10),
                 ElevatedButton(
                   onPressed:
-                      isRecorded ? null : () => handleButton(key, context),
+                  isRecorded ? null : () => handleButton(key, context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isRecorded ? Colors.grey : appGreen,
                     disabledBackgroundColor: Colors.grey,
@@ -649,22 +663,22 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         ),
       );
     } else {
-      // Employee - navigate to work mode selection
-      Navigator.of(context).push(_createSlideTransition());
+      // Employee - navigate to work mode selection using pushReplacement
+      Navigator.of(context).pushReplacement(_createSlideTransition());
     }
   }
 
   Route _createSlideTransition() {
     return PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) =>
-          const WorkModeSelectionPage(),
+      const WorkModeSelectionPage(),
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         const begin = Offset(-1.0, 0.0);
         const end = Offset.zero;
         const curve = Curves.easeInOut;
 
         final tween =
-            Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
         final offsetAnimation = animation.drive(tween);
 
         return SlideTransition(position: offsetAnimation, child: child);
@@ -702,25 +716,25 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
   }
 
   String _monthNameLong(int m) => const [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December"
-      ][m - 1];
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ][m - 1];
 
   String _weekdayName(int w) =>
       const ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][w - 1];
 }
 
-/// Simple “pill” chip used for status/started-at labels.
+/// Simple "pill" chip used for status/started-at labels.
 class _StatusPill extends StatelessWidget {
   final String text;
   final Color color;
