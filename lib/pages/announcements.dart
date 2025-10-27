@@ -498,11 +498,17 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Announcements',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Announcements',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         backgroundColor: bpgGreen,
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
           IconButton(
             tooltip: 'Refresh',
@@ -511,6 +517,7 @@ class _AnnouncementsPageState extends State<AnnouncementsPage> {
           ),
         ],
       ),
+
       body: Container(
         width: double.infinity,
         height: double.infinity,

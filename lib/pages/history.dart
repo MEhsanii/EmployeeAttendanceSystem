@@ -49,9 +49,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final currentMonthName = DateFormat('MMMM yyyy').format(now);
     if (months.contains(currentMonthName)) {
       selectedMonth = currentMonthName;
-      fetchFilteredRecords(currentMonthName); // <- old fetch, kept
+      fetchFilteredRecords(currentMonthName);
     } else {
-      fetchAttendanceHistory(); // <- old fetch, kept
+      fetchAttendanceHistory();
     }
   }
 
@@ -156,15 +156,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
       final startWork = data['startWork'] as Timestamp?;
       final endWork = data['endWork'] as Timestamp?;
-      final startBreak = data['startBreak'] as Timestamp?;
-      final endBreak = data['endBreak'] as Timestamp?;
       final workMode = data['workMode'] as String?;
       final isHoliday = data['isHoliday'] == true;
       final holidayName = data['holidayName'] as String?;
 
-      final work = _calcDuration(
-          startWork, endWork); // gross work (as per your old screen)
-      final brk = _calcDuration(startBreak, endBreak);
+      // NEW: Parse breaks array
+      final breaks = <_BreakEntry>[];
+      if (data['breaks'] != null) {
+        final breaksList = data['breaks'] as List;
+        for (final breakData in breaksList) {
+          final breakMap = breakData as Map<String, dynamic>;
+          breaks.add(_BreakEntry(
+            startTime: breakMap['startTime'] as Timestamp?,
+            endTime: breakMap['endTime'] as Timestamp?,
+            description: breakMap['description'] as String? ?? 'Break',
+          ));
+        }
+      }
+
+      final work = _calcDuration(startWork, endWork);
+
+      // Calculate total break duration from all breaks
+      Duration totalBreakDuration = Duration.zero;
+      for (final brk in breaks) {
+        final brkDuration = _calcDuration(brk.startTime, brk.endTime);
+        if (brkDuration != null) {
+          totalBreakDuration += brkDuration;
+        }
+      }
 
       entries.add(
         _DayEntry(
@@ -174,10 +193,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           holidayName: holidayName,
           startWork: startWork,
           endWork: endWork,
-          startBreak: startBreak,
-          endBreak: endBreak,
+          breaks: breaks,
           workDuration: work,
-          breakDuration: brk,
+          breakDuration: totalBreakDuration,
         ),
       );
     }
@@ -209,7 +227,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60);
     return '${h}h ${m}m';
-    // If you like 0h -> 0h 0m, keep as-is; otherwise conditionally hide zeros
   }
 
   String _fmtTime(Timestamp? ts) {
@@ -247,7 +264,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       // Summations
       if (d.workDuration != null) {
         totalWork += d.workDuration!;
-        workingDays++; // treat a day with recorded work as a working day
+        workingDays++;
       }
       if (d.breakDuration != null) totalBreak += d.breakDuration!;
     }
@@ -332,19 +349,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () => selectedMonth == 'All Records'
-                  ? fetchAttendanceHistory()
-                  : fetchFilteredRecords(selectedMonth),
-              child: ListView(
-                children: [
-                  SizedBox(height: context.h(1.8)),
-                  _summaryCard(appGreen),
-                  SizedBox(height: context.h(1.5)),
-                  _dailyEntriesSection(appGreen),
-                  SizedBox(height: context.h(3.5)),
-                ],
-              ),
-            ),
+        onRefresh: () => selectedMonth == 'All Records'
+            ? fetchAttendanceHistory()
+            : fetchFilteredRecords(selectedMonth),
+        child: ListView(
+          children: [
+            SizedBox(height: context.h(1.8)),
+            _summaryCard(appGreen),
+            SizedBox(height: context.h(1.5)),
+            _dailyEntriesSection(appGreen),
+            SizedBox(height: context.h(3.5)),
+          ],
+        ),
+      ),
     );
   }
 
@@ -352,7 +369,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _summaryCard(Color appGreen) {
     final monthTitle = selectedMonth == 'All Records'
         ? 'All Records'
-        : selectedMonth; // e.g., "August 2025"
+        : selectedMonth;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: context.w(4)),
@@ -392,8 +409,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               _pill(appGreen, Icons.access_time, 'Total Work',
                   _fmtHMM(_summary.totalWork),
                   filled: true),
-              //_pill(appGreen, Icons.free_breakfast, 'Total Break',
-              //_fmtHMM(_summary.totalBreak)),
+              _pill(appGreen, Icons.free_breakfast, 'Total Break',
+                  _fmtHMM(_summary.totalBreak)),
               _pill(appGreen, Icons.event, 'Working Days',
                   '${_summary.workingDays}'),
               _pill(appGreen, Icons.av_timer, 'Avg / Day',
@@ -470,18 +487,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
             style: TextStyle(color: Colors.black54, fontSize: context.sp(14))),
         children: _days.isEmpty
             ? [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(18, 0, 18, 16),
-                  child: Text('No entries for this period.',
-                      style: TextStyle(color: Colors.black54)),
-                )
-              ]
+          const Padding(
+            padding: EdgeInsets.fromLTRB(18, 0, 18, 16),
+            child: Text('No entries for this period.',
+                style: TextStyle(color: Colors.black54)),
+          )
+        ]
             : _days.map(_dayTile).toList(),
       ),
     );
   }
 
-  // ---- Day tile (your last version with Sick/Holiday support) ----
+  // ---- Day tile (updated with multiple breaks support) ----
   Widget _dayTile(_DayEntry d) {
     const appGreen = Color(0xFF2E7D32);
     final isPast = d.date.isBefore(DateTime.now());
@@ -549,8 +566,102 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
             if (!d.isHoliday) ...[
               _row("Start Work", Icons.login, _fmtTime(d.startWork)),
-              _row("Start Break", Icons.coffee, _fmtTime(d.startBreak)),
-              _row("End Break", Icons.coffee_outlined, _fmtTime(d.endBreak)),
+
+              // Display multiple breaks
+              if (d.breaks.isNotEmpty) ...[
+                SizedBox(height: context.h(0.75)),
+                Container(
+                  padding: EdgeInsets.all(context.w(2.5)),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(context.w(2)),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.free_breakfast,
+                              size: context.sp(16), color: Colors.orange.shade700),
+                          SizedBox(width: context.w(1.5)),
+                          Text(
+                            'Breaks (${d.breaks.length})',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: context.sp(13),
+                              color: Colors.orange.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: context.h(0.75)),
+                      ...d.breaks.map((brk) => Padding(
+                        padding: EdgeInsets.symmetric(vertical: context.h(0.25)),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: context.w(1),
+                              height: context.h(2),
+                              decoration: BoxDecoration(
+                                color: brk.endTime != null
+                                    ? Colors.green.shade400
+                                    : Colors.orange.shade400,
+                                borderRadius: BorderRadius.circular(context.w(0.5)),
+                              ),
+                            ),
+                            SizedBox(width: context.w(2)),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    brk.description,
+                                    style: TextStyle(
+                                      fontSize: context.sp(12),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  SizedBox(height: context.h(0.25)),
+                                  Text(
+                                    '${_fmtTime(brk.startTime)} - ${_fmtTime(brk.endTime)}',
+                                    style: TextStyle(
+                                      fontSize: context.sp(11),
+                                      color: Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (brk.endTime != null && brk.startTime != null)
+                              Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: context.w(1.5),
+                                  vertical: context.h(0.3),
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(context.w(1.5)),
+                                ),
+                                child: Text(
+                                  _fmtHMM(_calcDuration(brk.startTime, brk.endTime)!),
+                                  style: TextStyle(
+                                    fontSize: context.sp(10),
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      )).toList(),
+                    ],
+                  ),
+                ),
+                SizedBox(height: context.h(0.75)),
+              ],
+
               _row("End Work", Icons.logout, _fmtTime(d.endWork)),
               SizedBox(height: context.h(1)),
               Row(
@@ -558,13 +669,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   Icon(Icons.access_time,
                       size: context.sp(16), color: Colors.grey),
                   SizedBox(width: context.w(1.5)),
-                  Text(
-                    "Total Work: ${d.workDuration == null ? '--:--' : _fmtHMM(d.workDuration!)}"
-                    "${d.breakDuration != null ? "  •  Break: ${_fmtHMM(d.breakDuration!)}" : ""}",
-                    style: TextStyle(
-                      color: Colors.black87.withOpacity(isPast ? 0.9 : 1),
-                      fontWeight: FontWeight.w600,
-                      fontSize: context.sp(14),
+                  Expanded(
+                    child: Text(
+                      "Total Work: ${d.workDuration == null ? '--:--' : _fmtHMM(d.workDuration!)}"
+                          "${d.breakDuration != null && d.breakDuration! > Duration.zero ? "  •  Break: ${_fmtHMM(d.breakDuration!)}" : ""}",
+                      style: TextStyle(
+                        color: Colors.black87.withOpacity(isPast ? 0.9 : 1),
+                        fontWeight: FontWeight.w600,
+                        fontSize: context.sp(14),
+                      ),
                     ),
                   ),
                 ],
@@ -592,7 +705,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ]),
           Text(value,
               style:
-                  TextStyle(fontSize: context.sp(14), color: Colors.black54)),
+              TextStyle(fontSize: context.sp(14), color: Colors.black54)),
         ],
       ),
     );
@@ -601,7 +714,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _chip({
     required String text,
     required IconData icon,
-    Color? iconColor, // optional & nullable
+    Color? iconColor,
   }) {
     return Container(
       padding: EdgeInsets.symmetric(
@@ -617,7 +730,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         Text(text,
             style: TextStyle(
                 fontSize: context.sp(12),
-                color: iconColor ?? Color(0xFF2E7D32))),
+                color: iconColor ?? const Color(0xFF2E7D32))),
       ]),
     );
   }
@@ -627,19 +740,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
 // MODELS
 // =========================
 
+class _BreakEntry {
+  final Timestamp? startTime;
+  final Timestamp? endTime;
+  final String description;
+
+  _BreakEntry({
+    required this.startTime,
+    required this.endTime,
+    required this.description,
+  });
+}
+
 class _DayEntry {
   final DateTime date;
-  final String? workMode; // 'Office', 'Home Office', 'Sick', etc.
+  final String? workMode;
   final bool isHoliday;
   final String? holidayName;
 
   final Timestamp? startWork;
   final Timestamp? endWork;
-  final Timestamp? startBreak;
-  final Timestamp? endBreak;
+  final List<_BreakEntry> breaks; // NEW: List of breaks instead of single break
 
-  final Duration? workDuration; // endWork - startWork
-  final Duration? breakDuration; // endBreak - startBreak
+  final Duration? workDuration;
+  final Duration? breakDuration; // Total break duration
 
   _DayEntry({
     required this.date,
@@ -648,8 +772,7 @@ class _DayEntry {
     required this.holidayName,
     required this.startWork,
     required this.endWork,
-    required this.startBreak,
-    required this.endBreak,
+    required this.breaks,
     required this.workDuration,
     required this.breakDuration,
   });
@@ -677,15 +800,15 @@ class _MonthSummary {
   });
 
   factory _MonthSummary.zero() => const _MonthSummary(
-        totalWork: Duration.zero,
-        totalBreak: Duration.zero,
-        averagePerDay: Duration.zero,
-        workingDays: 0,
-        officeDays: 0,
-        homeOfficeDays: 0,
-        sickDays: 0,
-        holidayDays: 0,
-      );
+    totalWork: Duration.zero,
+    totalBreak: Duration.zero,
+    averagePerDay: Duration.zero,
+    workingDays: 0,
+    officeDays: 0,
+    homeOfficeDays: 0,
+    sickDays: 0,
+    holidayDays: 0,
+  );
 }
 
 // =========================

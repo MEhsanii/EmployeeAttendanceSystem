@@ -13,7 +13,6 @@ class MainAttendanceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // No bottom nav, no tabs — just the logging screen
     return const StaticWorkScreen();
   }
 }
@@ -32,14 +31,14 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     with WidgetsBindingObserver {
   Map<String, Timestamp?> timestamps = {
     'startWork': null,
-    'startBreak': null,
-    'endBreak': null,
     'endWork': null,
   };
 
+  List<Map<String, dynamic>> breaks = [];
+
   String? _currentWorkMode;
   bool _homeOfficeApprovedToday = false;
-  String? _userRole; // Track user role for navigation
+  String? _userRole;
 
   @override
   void initState() {
@@ -77,7 +76,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
     try {
-      // Check in the global homeOfficeRequests collection
       final querySnapshot = await FirebaseFirestore.instance
           .collection('homeOfficeRequests')
           .where('userId', isEqualTo: user.uid)
@@ -139,11 +137,18 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
       setState(() {
         timestamps = {
           'startWork': data['startWork'],
-          'startBreak': data['startBreak'],
-          'endBreak': data['endBreak'],
           'endWork': data['endWork'],
         };
         _currentWorkMode = data['workMode'];
+
+        // Load breaks array
+        if (data['breaks'] != null) {
+          breaks = List<Map<String, dynamic>>.from(
+            (data['breaks'] as List).map((b) => Map<String, dynamic>.from(b)),
+          );
+        } else {
+          breaks = [];
+        }
       });
     }
   }
@@ -238,19 +243,143 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     }
   }
 
+  Future<void> _addBreak(String description) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('attendance')
+        .doc(dateKey);
+
+    try {
+      final newBreak = {
+        'startTime': Timestamp.now(),
+        'endTime': null,
+        'description': description,
+      };
+
+      final updatedBreaks = [...breaks, newBreak];
+
+      await docRef.set({
+        'breaks': updatedBreaks,
+        'createdAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() {
+          breaks = updatedBreaks;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Break started: $description')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding break: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _endBreak(int index) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final now = DateTime.now();
+    final dateKey =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('attendance')
+        .doc(dateKey);
+
+    try {
+      final updatedBreaks = List<Map<String, dynamic>>.from(breaks);
+      updatedBreaks[index]['endTime'] = Timestamp.now();
+
+      await docRef.set({
+        'breaks': updatedBreaks,
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        setState(() {
+          breaks = updatedBreaks;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Break ended')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error ending break: $e')),
+        );
+      }
+    }
+  }
+
+  void _showAddBreakDialog() {
+    final TextEditingController descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Start Break'),
+        content: TextField(
+          controller: descriptionController,
+          decoration: const InputDecoration(
+            labelText: 'Break Description',
+            hintText: 'e.g., Lunch, Coffee, Prayer',
+            border: OutlineInputBorder(),
+          ),
+          maxLength: 50,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final desc = descriptionController.text.trim();
+              if (desc.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a description')),
+                );
+                return;
+              }
+              Navigator.pop(context);
+              _addBreak(desc);
+            },
+            child: const Text('Start Break'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return '--:--';
     final dt = timestamp.toDate();
     return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
-  // Handle back button press (both AppBar and phone hardware button)
   Future<bool> _handleBackPress() async {
     _navigateBack(context);
-    return false; // Prevent default back behavior
+    return false;
   }
 
-  // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
     const appGreen = Color(0xFF2E7D32);
@@ -363,9 +492,9 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                                   : Icons.apartment,
                               size: 14,
                             ),
-                            label: Text(
+                            label: const Text(
                               'Office',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -398,9 +527,9 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                                   : Icons.home_work,
                               size: 14,
                             ),
-                            label: Text(
-                              _homeOfficeApprovedToday ? 'Home' : 'Home',
-                              style: const TextStyle(
+                            label: const Text(
+                              'Home',
+                              style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -480,12 +609,218 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                 ],
 
                 _buildActionCard('Start Work', 'startWork'),
-                _buildActionCard('Start Break', 'startBreak'),
-                _buildActionCard('End Break', 'endBreak'),
+
+                // Breaks Section
+                _buildBreaksSection(),
+
                 _buildActionCard('End Work', 'endWork'),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBreaksSection() {
+    const appGreen = Color(0xFF2E7D32);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+              color: Colors.black12, blurRadius: 8, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFE8F5E9), Color(0xFFDDEFD9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Icon(Icons.free_breakfast_rounded,
+                      color: appGreen, size: 26),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Breaks',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 18,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Manage your break times',
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // List of breaks
+            if (breaks.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'No breaks recorded yet',
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              )
+            else
+              ...breaks.asMap().entries.map((entry) {
+                final index = entry.key;
+                final breakData = entry.value;
+                final startTime = breakData['startTime'] as Timestamp?;
+                final endTime = breakData['endTime'] as Timestamp?;
+                final description = breakData['description'] as String;
+                final isActive = endTime == null;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? Colors.orange.shade50
+                        : Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isActive
+                          ? Colors.orange.shade200
+                          : Colors.grey.shade200,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isActive ? Icons.timelapse : Icons.check_circle,
+                            size: 16,
+                            color: isActive ? Colors.orange : Colors.green,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              description,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          if (isActive)
+                            _StatusPill(
+                              text: 'Active',
+                              color: Colors.orange,
+                              lightText: false,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.play_arrow,
+                              size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            formatTimestamp(startTime),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Icon(Icons.stop, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(
+                            formatTimestamp(endTime),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          if (isActive) ...[
+                            const Spacer(),
+                            TextButton(
+                              onPressed: () => _endBreak(index),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.orange.shade700,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 4),
+                              ),
+                              child: const Text(
+                                'End Break',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+
+            const SizedBox(height: 8),
+
+            // Add Break Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _showAddBreakDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: appGreen,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: const Text(
+                  'Add Break',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -514,7 +849,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // HEADER ROW: badge + full-width text (no controls on the right)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -532,7 +866,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                   child: Icon(icon, color: appGreen, size: 26),
                 ),
                 const SizedBox(width: 12),
-                // Title + subtitle + time get the whole remaining width
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -550,8 +883,8 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: TextStyle(
-                          color: Colors.black54.withOpacity(0.9),
+                        style: const TextStyle(
+                          color: Colors.black54,
                           fontSize: 13,
                         ),
                       ),
@@ -576,7 +909,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
 
             const SizedBox(height: 12),
 
-            // CONTROLS ROW: pills on the left, Record button on the right
             Row(
               children: [
                 Expanded(
@@ -618,7 +950,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
 
             const SizedBox(height: 6),
 
-            // EDIT aligned to the right
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -654,7 +985,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
   }
 
   void _navigateBack(BuildContext context) {
-    // If user is HR or CEO, navigate back to admin dashboard
     final role = _userRole?.toLowerCase();
     if (role != null && (role == 'hr' || role == 'ceo')) {
       Navigator.of(context).pushReplacement(
@@ -663,7 +993,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
         ),
       );
     } else {
-      // Employee - navigate to work mode selection using pushReplacement
       Navigator.of(context).pushReplacement(_createSlideTransition());
     }
   }
@@ -686,15 +1015,10 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     );
   }
 
-  // Helpers for icons, subtitles, names
   IconData _iconFor(String key) {
     switch (key) {
       case 'startWork':
         return Icons.play_arrow_rounded;
-      case 'startBreak':
-        return Icons.free_breakfast_rounded;
-      case 'endBreak':
-        return Icons.coffee_maker_outlined;
       case 'endWork':
       default:
         return Icons.stop_rounded;
@@ -705,10 +1029,6 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
     switch (key) {
       case 'startWork':
         return "Begin your workday";
-      case 'startBreak':
-        return "Log the start of your break";
-      case 'endBreak':
-        return "End your break";
       case 'endWork':
       default:
         return "Finish your workday";
@@ -734,11 +1054,11 @@ class _StaticWorkScreenState extends State<StaticWorkScreen>
       const ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][w - 1];
 }
 
-/// Simple "pill" chip used for status/started-at labels.
 class _StatusPill extends StatelessWidget {
   final String text;
   final Color color;
   final bool lightText;
+
   const _StatusPill({
     required this.text,
     required this.color,
