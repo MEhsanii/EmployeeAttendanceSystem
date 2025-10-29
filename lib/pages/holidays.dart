@@ -10,11 +10,31 @@ class HolidaysScreen extends StatefulWidget {
 
 class _HolidaysScreenState extends State<HolidaysScreen> {
   late int _year;
+  List<int> _availableYears = [];
+
 
   @override
   void initState() {
     super.initState();
     _year = DateTime.now().year;
+    _loadAvailableYears();
+    // HolidayService.seedFromAssetIfEmpty(); // uncomment when new vacations to be added
+    // also make the check inside the if true
+  }
+
+  Future<void> _loadAvailableYears() async {
+    try {
+      final years = await HolidayService.availableYears();
+      setState(() {
+        _availableYears = years..sort(); // ensure sorted ascending
+        // If current year isn't in data, default to latest year
+        if (!_availableYears.contains(_year)) {
+          _year = _availableYears.last;
+        }
+      });
+    } catch (e) {
+      debugPrint("Failed to load years: $e");
+    }
   }
 
   @override
@@ -35,6 +55,8 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
             const SizedBox(width: 6),
             _YearPickerChip(
               year: _year,
+              availableYears: _availableYears,
+
               onChange: (y) => setState(() => _year = y),
             ),
           ],
@@ -375,13 +397,31 @@ class _Chip extends StatelessWidget {
 
 class _YearPickerChip extends StatelessWidget {
   final int year;
+  final List<int> availableYears;
   final ValueChanged<int> onChange;
-  const _YearPickerChip({required this.year, required this.onChange});
+
+  const _YearPickerChip({
+    required this.year,
+    required this.availableYears,
+    required this.onChange,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now().year;
-    final choices = [now - 1, now, now + 1]; // simple range; extend if needed
+    if (availableYears.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withOpacity(0.25)),
+        ),
+        child: const Text(
+          "—",
+          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700),
+        ),
+      );
+    }
 
     return PopupMenuButton<int>(
       initialValue: year,
@@ -389,7 +429,7 @@ class _YearPickerChip extends StatelessWidget {
       color: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       itemBuilder: (context) => [
-        for (final y in choices)
+        for (final y in availableYears)
           PopupMenuItem<int>(
             value: y,
             child: Text(
@@ -411,9 +451,13 @@ class _YearPickerChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(year.toString(),
-                style: const TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.w700)),
+            Text(
+              year.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const Icon(Icons.expand_more, color: Colors.white),
           ],
         ),

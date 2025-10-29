@@ -67,6 +67,59 @@ class HolidayService {
     return null;
   }
 
+  static Future<Map<int, List<Holiday>>> allHolidays() async {
+    // If cache already contains at least one year, use it as starting point.
+    if (_cache.isNotEmpty) {
+      // create copy grouped map from _cache
+      return Map<int, List<Holiday>>.fromEntries(
+        _cache.entries.map((e) => MapEntry(e.key, List<Holiday>.from(e.value))),
+      );
+    }
+    final query = await _col.get();
+    final docs = query.docs;
+
+    final Map<int, List<Holiday>> out = {};
+    for (final doc in docs) {
+      final data = doc.data();
+      final ts = data['date'];
+      final DateTime date =
+      ts is Timestamp ? ts.toDate() : DateTime.parse(ts as String);
+      final name = data['name'] as String;
+      final company = (data['companyDayOff'] as bool?) ?? false;
+      final hol = Holiday(
+          date: DateTime(date.year, date.month, date.day),
+          name: name,
+          companyDayOff: company);
+      final year = hol.date.year;
+      out.putIfAbsent(year, () => []).add(hol);
+    }
+
+    // sort each year's list by date
+    for (final list in out.values) {
+      list.sort((a, b) => a.date.compareTo(b.date));
+    }
+
+    // populate cache for future calls
+    for (final entry in out.entries) {
+      _cache[entry.key] = List<Holiday>.from(entry.value);
+    }
+
+    return out;
+  }
+
+  static Future<List<int>> availableYears() async {
+    try {
+      final map = await allHolidays();
+      final years = map.keys.toList()..sort();
+      return years;
+    } catch (e) {
+      // in case of error return current year as fallback
+      final now = DateTime.now().year;
+      return [now];
+    }
+  }
+
+
   // One-time seeding from bundled asset if collection is empty
   static Future<void> seedFromAssetIfEmpty() async {
     final exists = await _col.limit(1).get();
