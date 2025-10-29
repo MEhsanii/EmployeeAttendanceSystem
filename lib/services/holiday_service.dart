@@ -11,10 +11,10 @@ class Holiday {
 
 class HolidayService {
   static final CollectionReference<Map<String, dynamic>> _col =
-      FirebaseFirestore.instance.collection('holidays').withConverter(
-            fromFirestore: (snap, _) => snap.data() ?? <String, dynamic>{},
-            toFirestore: (data, _) => data,
-          );
+  FirebaseFirestore.instance.collection('holidays').withConverter(
+    fromFirestore: (snap, _) => snap.data() ?? <String, dynamic>{},
+    toFirestore: (data, _) => data,
+  );
 
   // Cache per year
   static final Map<int, List<Holiday>> _cache = <int, List<Holiday>>{};
@@ -25,13 +25,13 @@ class HolidayService {
     }
 
     final query =
-        await _col.where('year', isEqualTo: year).orderBy('date').get();
+    await _col.where('year', isEqualTo: year).orderBy('date').get();
 
     final list = query.docs.map((doc) {
       final data = doc.data();
       final ts = data['date'];
       final DateTime date =
-          ts is Timestamp ? ts.toDate() : DateTime.parse(ts as String);
+      ts is Timestamp ? ts.toDate() : DateTime.parse(ts as String);
       return Holiday(
         date: DateTime(date.year, date.month, date.day),
         name: data['name'] as String,
@@ -40,7 +40,10 @@ class HolidayService {
     }).toList()
       ..sort((a, b) => a.date.compareTo(b.date));
 
-    _cache[year] = list;
+    // Only cache if we actually have data for this year
+    if (list.isNotEmpty) {
+      _cache[year] = List<Holiday>.from(list);
+    }
     return List<Holiday>.from(list);
   }
 
@@ -109,8 +112,28 @@ class HolidayService {
 
   static Future<List<int>> availableYears() async {
     try {
-      final map = await allHolidays();
-      final years = map.keys.toList()..sort();
+      // Instead of calling allHolidays which builds the entire map,
+      // query Firestore directly for distinct years
+      final snapshot = await _col.get();
+
+      if (snapshot.docs.isEmpty) {
+        // Return current year as fallback if no data
+        return [DateTime.now().year];
+      }
+
+      // Extract unique years from the documents
+      final Set<int> yearsSet = {};
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final year = data['year'] as int?;
+        if (year != null) {
+          yearsSet.add(year);
+        }
+      }
+
+      // Convert to sorted list
+      final years = yearsSet.toList()..sort();
+
       return years;
     } catch (e) {
       // in case of error return current year as fallback
@@ -118,7 +141,6 @@ class HolidayService {
       return [now];
     }
   }
-
 
   // One-time seeding from bundled asset if collection is empty
   static Future<void> seedFromAssetIfEmpty() async {
@@ -154,6 +176,4 @@ class HolidayService {
     // Clear cache so subsequent reads go to Firestore and cache fresh data
     _cache.clear();
   }
-
-  // _assertAdmin removed during temporary open seeding
 }

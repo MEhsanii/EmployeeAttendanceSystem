@@ -12,30 +12,45 @@ class _HolidaysScreenState extends State<HolidaysScreen> {
   late int _year;
   List<int> _availableYears = [];
 
-
   @override
   void initState() {
     super.initState();
     _year = DateTime.now().year;
     _loadAvailableYears();
     // HolidayService.seedFromAssetIfEmpty(); // uncomment when new vacations to be added
-    // also make the check inside the if true
   }
 
   Future<void> _loadAvailableYears() async {
     try {
       final years = await HolidayService.availableYears();
+
       setState(() {
-        _availableYears = years..sort(); // ensure sorted ascending
-        // If current year isn't in data, default to latest year
-        if (!_availableYears.contains(_year)) {
-          _year = _availableYears.last;
+        _availableYears = years;
+
+        // Ensure _year is one of the valid ones
+        if (_availableYears.isNotEmpty && !_availableYears.contains(_year)) {
+          // Set to current year if available, otherwise use the closest year
+          if (_availableYears.contains(DateTime.now().year)) {
+            _year = DateTime.now().year;
+          } else {
+            // Find the closest year to current year
+            final currentYear = DateTime.now().year;
+            _year = _availableYears.reduce((a, b) =>
+            (a - currentYear).abs() < (b - currentYear).abs() ? a : b
+            );
+          }
         }
       });
     } catch (e) {
       debugPrint("Failed to load years: $e");
+      // Fallback to current year if error
+      setState(() {
+        _availableYears = [DateTime.now().year];
+        _year = DateTime.now().year;
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
